@@ -2,7 +2,7 @@ package com.shatteredpixel.shatteredpixeldungeon.services.server;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
-import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.net.HttpStatus;
 import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.server.ServerDungeonList;
@@ -19,16 +19,18 @@ import com.watabou.utils.DeviceCompat;
 import com.watabou.utils.FileUtils;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.SocketException;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+
+import static com.shatteredpixel.shatteredpixeldungeon.services.server.ServerConstants.*;
 
 @NotAllowedInLua
 public final class ServerCommunication {
@@ -48,7 +50,7 @@ public final class ServerCommunication {
                 return false;
             }
 
-            String scriptLoadURL = "https://script.google.com/macros/s/AKfycbxuykWaelTwPHzSdYk131C4e4AzFFl3zlTx7Cenz1FlbcJEwTHo1_I-sbn1UECBGsr10g/exec";
+            String scriptLoadURL = "https://script.google.com/macros/s/AKfycbxpT2WJZvOtWIex-mprHvL5I4l9RyF1JbXzPh3VrIZlD_E-w1QAej0hoHVfa6QrEg_r/exec";
             Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
             httpRequest.setUrl(scriptLoadURL);
 
@@ -56,7 +58,7 @@ public final class ServerCommunication {
                 @Override
                 public void handleHttpResponse(Net.HttpResponse httpResponse) {
                     int statusCode = httpResponse.getStatus().getStatusCode();
-                    if (statusCode == 200) {
+                    if (statusCode == HttpStatus.SC_OK) {
                         String result = httpResponse.getResultAsString();
                         if (result.startsWith("http")) URL = result;
                     }
@@ -89,19 +91,15 @@ public final class ServerCommunication {
                 }).run();
             }
         }
-        return URL == null||true ? "https://script.google.com/macros/s/AKfycbzZ5mT897D9QTauIIHThl_i4TietQVG8bY0n4aZKaoAusPBdP1M6zmNOOVwzO4sJ-Gg-Q/exec" : URL;
+        return URL == null ? "https://script.google.com/macros/s/AKfycbxFL97fIxz7275jWPtU7pN5UiR0rmMO373XI_sl8Bt3CK0I65Se1U5zB1cdYZok3xKa/exec" : URL;
     }
 
     static String getUUID() {
         if (userID == null) {
             userID = SPDSettings.uuid();
             if (userID == null) {
-                try {
-                    userID = URLEncoder.encode(UUID.randomUUID().toString(), "UTF-8");
-                } catch (UnsupportedEncodingException e) {
-                    userID = String.valueOf(System.currentTimeMillis());
-                }
-                SPDSettings.uuid(userID);
+				userID = URLEncoder.encode(UUID.randomUUID().toString(), StandardCharsets.UTF_8);
+				SPDSettings.uuid(userID);
             }
         }
         return userID;
@@ -133,6 +131,22 @@ public final class ServerCommunication {
                         else Gdx.net.cancelHttpRequest(httpRequest);
                     }
                 }
+                
+                private boolean selectCancelOnDestroy = true;
+                
+                @Override
+                public void destroy() {
+                    if (selectCancelOnDestroy) {
+                        onSelect(0);//select cancel
+                    }
+                    super.destroy();
+                }
+                
+                @Override
+                public void hide() {
+                    selectCancelOnDestroy = false;
+                    super.hide();
+                }
             };
             Game.scene().addToFront(waitWindow);
         }
@@ -153,10 +167,10 @@ public final class ServerCommunication {
                     });
                 }
         }
-
-        public void appendMessage(String msg) {
+        
+        public void setMessage(String msg) {
             if (waitWindow instanceof WndOptions) {
-                ((WndOptions) waitWindow).appendMessage(msg);
+                ((WndOptions) waitWindow).setMessage(msg);
             }
         }
 
@@ -225,7 +239,10 @@ public final class ServerCommunication {
     public static void dungeonList(OnPreviewReceive callback, int page) {
 
         Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-        httpRequest.setUrl(getURL() + "?action=getPreviewList&page="+page+"&perPage="+ ServerDungeonList.PREVIEWS_PER_PAGE);
+        httpRequest.setUrl(getURL()
+                + "?action=" + ACTION_GET_PREVIEW_LIST
+                + "&page=" + page
+                + "&perPage=" + ServerDungeonList.PREVIEWS_PER_PAGE);
 
 //        callback.showWindow(httpRequest);
 
@@ -245,7 +262,7 @@ public final class ServerCommunication {
                                 Bundle bundle = Bundle.class.getConstructor(String.class).newInstance(b.getString("content"));
                                 preview = new DungeonPreview();
                                 preview.restoreFromBundle(bundle);
-                                preview.dungeonFileID = b.getString("dungeonID");
+                                preview.dungeonID = b.getString("dungeonID");
                                 
                                 if (preview.isDebug && !DeviceCompat.isDebug()) {
                                     continue;
@@ -253,7 +270,7 @@ public final class ServerCommunication {
 
                             } catch (Exception e) {
                                 preview = new DungeonPreview();
-                                preview.dungeonFileID = "ERROR: " + e.getMessage();
+                                preview.dungeonID = "ERROR: " + e.getMessage();
                             }
                             dungeons.add(preview);
                         }
@@ -295,14 +312,15 @@ public final class ServerCommunication {
         @Override
         public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
             int statusCode = httpResponse.getStatus().getStatusCode();
-            if (statusCode == 200) {
-                String result = httpResponse.getResultAsString();
-                if (result.startsWith("true")) Game.runOnRenderThread(() -> callback.successful(result.substring(4)));
-                else if (result.startsWith("banned")) Game.runOnRenderThread(() -> callback.failed(new Banned()));
-                else Game.runOnRenderThread(() -> callback.failed(new Exception(result)));
-            } else {
-                Game.runOnRenderThread(() -> callback.failed(new SocketException(String.valueOf(statusCode))));
+            String result = httpResponse.getResultAsString();
+            if (statusCode != HttpStatus.SC_OK) {
+                Game.runOnRenderThread(() -> callback.failed(new SocketException(statusCode + result)));
+                return;
             }
+            if (result.startsWith(KEYWORD_BANNED)) Game.runOnRenderThread(() -> callback.failed(new Banned()));
+            else if (result.startsWith(KEYWORD_SUCCESS)) Game.runOnRenderThread(() -> callback.successful(result.substring(KEYWORD_SUCCESS.length())));
+            else Game.runOnRenderThread(() -> callback.failed(new Exception(result)));
+            
         }
 
         @Override
@@ -321,121 +339,98 @@ public final class ServerCommunication {
         }
     }
 
-    public static void uploadDungeon(String dungeonName, String description, String userName, int difficulty, UploadCallback callback) {
-        new UploadDungeonAction(dungeonName, description, userName, difficulty, callback);
+    public static void uploadDungeon(String dungeonName, String title, String description, String userName, int difficulty, String versionName, UploadCallback callback) {
+        new UploadDungeonAction(dungeonName, title, description, userName, difficulty, versionName, callback);
     }
 
-    public static void updateDungeon(DungeonPreview oldDungeonPreview, String newDungeonName, String newDescription, int difficulty, UploadCallback callback) {
-        new UpdateDungeonAction(oldDungeonPreview, CustomDungeon.maybeFixIncorrectNameEnding(newDungeonName), newDescription, difficulty, callback);
+    public static void updateDungeon(DungeonPreview oldDungeonPreview, String newDungeonName, String title, String newDescription, int difficulty, String versionName, UploadCallback callback) {
+        new UpdateDungeonAction(oldDungeonPreview, CustomDungeon.maybeFixIncorrectNameEnding(newDungeonName), title, newDescription, difficulty, versionName, callback);
     }
 
     public static void reportBug(String dungeonName, String description, UploadCallback callback) {
-        try {
-            Bundle dungeonAsBundle;
-            if (dungeonName == null) dungeonAsBundle = null;
-            else {
-                try {
-                    dungeonAsBundle = CustomDungeonSaves.getExportDungeonBundle(dungeonName);
-                } catch (Exception ex) {
-                    ExportDungeonWrapper.AdditionalFileInfo dungeonFiles = new ExportDungeonWrapper.AdditionalFileInfo(
-                            FileUtils.getFileHandle(CustomDungeonSaves.DUNGEON_FOLDER + dungeonName.replace(' ', '_'))
-                    );
-                    dungeonAsBundle = new Bundle();
-                    dungeonAsBundle.put(CustomDungeonSaves.BUGGED, dungeonFiles);
-                }
-            }
-            String fileName = URLEncoder.encode(description.substring(0, Math.min(20, description.length())), "UTF-8");
-
-            DungeonPreview uploadPreview = new DungeonPreview();
-            uploadPreview.title = fileName;
-            uploadPreview.description = description;
-            uploadPreview.version = Game.version;
-            uploadPreview.intVersion = Game.versionCode;
-            uploadPreview.uploader = "null";
-
-            Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.POST);
-            httpRequest.setUrl(getURL() + "?action=bug_report&fileName=" + URLEncoder.encode(fileName, "UTF-8")
-                    + uploadPreview.writeArgumentsForURL());
-            httpRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
-            httpRequest.setContent("dungeon=" + dungeonAsBundle);
-
-            callback.showWindow(httpRequest);
-
-            Gdx.net.sendHttpRequest(httpRequest, new UploadDataListener(callback));
-        } catch (IOException e) {
-            Game.runOnRenderThread(() -> callback.failed(e));
-        }
-    }
+		Bundle dungeonAsBundle;
+		if (dungeonName == null) dungeonAsBundle = null;
+		else {
+			try {
+				dungeonAsBundle = CustomDungeonSaves.getExportDungeonBundle(dungeonName);
+			} catch (Exception ex) {
+				ExportDungeonWrapper.AdditionalFileInfo dungeonFiles = new ExportDungeonWrapper.AdditionalFileInfo(
+						FileUtils.getFileHandle(CustomDungeonSaves.DUNGEON_FOLDER + dungeonName.replace(' ', '_'))
+				);
+				dungeonAsBundle = new Bundle();
+				dungeonAsBundle.put(CustomDungeonSaves.BUGGED, dungeonFiles);
+			}
+		}
+		String fileName = URLEncoder.encode(description.substring(0, Math.min(20, description.length())), StandardCharsets.UTF_8);
+		
+		DungeonPreview uploadPreview = new DungeonPreview();
+		uploadPreview.title = fileName;
+		uploadPreview.description = description;
+		uploadPreview.version = Game.version;
+		uploadPreview.intVersion = Game.versionCode;
+		uploadPreview.uploader = "null";
+		
+		Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.POST);
+		httpRequest.setUrl(getURL()
+				+ "?action=" + ACTION_BUG_REPORT
+				+ "&fileName=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8)
+				+ uploadPreview.writeArgumentsForURL());
+		httpRequest.setHeader("Content-Type", "application/x-www-form-urlencoded");
+		httpRequest.setContent("dungeon=" + dungeonAsBundle);
+		
+		callback.showWindow(httpRequest);
+		
+		Gdx.net.sendHttpRequest(httpRequest, new UploadDataListener(callback));
+	}
 
     public static void deleteDungeon(String dungeonID, String dungeonName, UploadCallback callback) {
         Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-        httpRequest.setUrl(getURL() + "?action=deleteDungeon&dungeonID=" + dungeonID + "&userID=" + getUUID() + "&salt=" + dungeonName.hashCode());
+        httpRequest.setUrl(getURL()
+                + "?action=" + ACTION_DELETE_DUNGEON
+                + "&dungeonID=" + dungeonID
+                + "&userID=" + getUUID());
 
         callback.hideCancel();
 
         Gdx.net.sendHttpRequest(httpRequest, new UploadDataListener(callback));
     }
+    
+    public static void deleteVersion(String dungeonID, String versionID, UploadCallback callback) {
+        Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
+        httpRequest.setUrl(getURL()
+                + "?action=" + ACTION_DELETE_VERSION
+                + "&dungeonID=" + dungeonID
+                + "&versionID=" + versionID
+                + "&userID=" + getUUID());
+        
+        callback.hideCancel();
+        
+        Gdx.net.sendHttpRequest(httpRequest, new UploadDataListener(callback));
+    }
 
     public static void isCreator(String dungeonID, OwnershipCheckerCallback callback) {
-//        //send encrypted password:
-//
-//        //client sends password request to server
-//        //server generates key pair + id, sends public key and id to client
-//        //client encrypts password
-//        //client sends encrypted password + id
-//        //server uses the id to find the corresponding key pair
-//        //server decrypts pawword
-//        //server deletes key pair
-//        Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-//        httpRequest.setUrl(getURL() + "?action=getKeyToEncryptPassword");
-//        Gdx.net.sendHttpRequest(httpRequest, new com.badlogic.gdx.Net.HttpResponseListener() {
-//            @Override
-//            public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
-//                String result = httpResponse.getResultAsString();
-//                if (httpResponse.getStatus().getStatusCode() == 200 && result.startsWith("true")) {
-//
-//                    int indexSeparator = result.indexOf(';');
-//                    int id = Integer.parseInt(result.substring(4, indexSeparator));
-//                    String key = result.substring(indexSeparator + 1, result.length());
-//
-//                    String encrypted = "";
-//
-//
-//                } else {
-//                    Game.runOnRenderThread(() -> callback.failed(new SocketException(String.valueOf(httpResponse.getStatus().getStatusCode()))));
-//                }
-//
-//            }
-//
-//            @Override
-//            public void failed(Throwable t) {
-//                Game.runOnRenderThread(() -> callback.failed(t));
-//            }
-//
-//            @Override
-//            public void cancelled() {
-//                callback.successful(null);
-//            }
-//        });
-
 
         Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-        httpRequest.setUrl(getURL() + "?action=isCreator&dungeonID=" + dungeonID + "&userID=" + getUUID());
+        httpRequest.setUrl(getURL()
+                + "?action=" + ACTION_IS_CREATOR
+                + "&dungeonID=" + dungeonID
+                + "&userID=" + getUUID());
 
         callback.showWindow(httpRequest);
 
         Gdx.net.sendHttpRequest(httpRequest, new com.badlogic.gdx.Net.HttpResponseListener() {
             @Override
             public void handleHttpResponse(com.badlogic.gdx.Net.HttpResponse httpResponse) {
+                int statusCode = httpResponse.getStatus().getStatusCode();
                 String result = httpResponse.getResultAsString();
-                if (httpResponse.getStatus().getStatusCode() == 200) {
-                    if (result.startsWith("banned")) Game.runOnRenderThread(() -> callback.failed(new Banned()));
-                    else Game.runOnRenderThread(() -> callback.successful(Boolean.parseBoolean(result)));
-                } else {
-                    Game.runOnRenderThread(() -> callback.failed(new SocketException(String.valueOf(httpResponse.getStatus().getStatusCode()))));
+                if (statusCode != HttpStatus.SC_OK) {
+                    Game.runOnRenderThread(() -> callback.failed(new SocketException(statusCode + result)));
+                    return;
                 }
-
-            }
+				if (result.startsWith(KEYWORD_BANNED)) Game.runOnRenderThread(() -> callback.failed(new Banned()));
+				else Game.runOnRenderThread(() -> callback.successful(Boolean.parseBoolean(result)));
+				
+			}
 
             @Override
             public void failed(Throwable t) {
@@ -513,10 +508,10 @@ public final class ServerCommunication {
         try {
             String combined = userID + salt;
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(combined.getBytes("UTF-8"));
+            byte[] hash = digest.digest(combined.getBytes(StandardCharsets.UTF_8));
 //            Base64.getEncoder().encodeToString(hash);
             return convertToHexString(hash);
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return null;
         }
@@ -530,37 +525,6 @@ public final class ServerCommunication {
 
         public String id() {
             return name().toLowerCase(Locale.ENGLISH);
-        }
-    }
-
-
-    //publish helper
-    private static final String DIR = "publish_helper/";
-
-    //place the files from https://drive.google.com/drive/folders/158uV22qE6eBmS2jcEtV50nywDKAKNyGm in /publish_helper/
-    //call this method
-    //for each file, a sub-directory will be created, containing the password, the upload type, the preview as plain text, and the dungeon file
-    //the dungeon is automatically imported
-    //the .dun file is ready to upload so upload it and copy the file id
-    //paste the file id inside preview
-    //move the preview one directory up and call this method again, it will be saved as zip with .dat extension, this file can be uploaded
-    public static void scanFiles() {
-        FileHandle srcDir = FileUtils.getFileHandleWithDefaultPath(FileUtils.getFileTypeForCustomDungeons(), DIR);
-        if (!srcDir.isDirectory()) return;
-        for (FileHandle file : srcDir.list()) {
-
-            try {
-                if (!file.isDirectory()) {
-                    String content = file.readString("UTF-8");
-                    Bundle bundle = Bundle.class.getConstructor(String.class).newInstance(content);
-                    FileUtils.bundleToFile(file, bundle);
-
-                    if (bundle.contains(CustomDungeonSaves.EXPORT)) {
-                        ExportDungeonWrapper.doImport(file);
-                    }
-                }
-            } catch (Exception ignored) {
-            }
         }
     }
 

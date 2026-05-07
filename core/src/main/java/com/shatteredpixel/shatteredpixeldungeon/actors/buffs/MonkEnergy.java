@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ public class MonkEnergy extends HeroSubclassAbilityBuff {
 		revivePersists = true;
 	}
 
-	public float energy;
+	public float energy = 0;
 	public int cooldown; //currently unused, abilities had cooldowns prior to v2.5
 
 	private static final float MAX_COOLDOWN = 5;
@@ -192,7 +192,11 @@ public class MonkEnergy extends HeroSubclassAbilityBuff {
 		}
 		energyGain *= enGainMulti;
 
-		energy = Math.min(energy+energyGain, energyCap());
+		energy += energyGain;
+		//if we kill while using an ability, don't apply the cap yet, will be enforced after spending
+		if (target.buff(MonkAbility.UnarmedAbilityTracker.class) == null){
+			energy = Math.min(energy, energyCap());
+		}
 
 		if (energy >= 1 && cooldown == 0){
 			ActionIndicator.setAction(this);
@@ -207,6 +211,7 @@ public class MonkEnergy extends HeroSubclassAbilityBuff {
 
 	public void abilityUsed( MonkAbility abil ){
 		energy -= abil.energyCost();
+		energy = Math.min(energy, energyCap());
 
 		if (target instanceof Hero && ((Hero) target).hasTalent(Talent.COMBINED_ENERGY)
 				&& abil.energyCost() >= 5-((Hero) target).pointsInTalent(Talent.COMBINED_ENERGY)) {

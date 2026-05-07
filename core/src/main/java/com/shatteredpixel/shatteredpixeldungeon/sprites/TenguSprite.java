@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,23 +44,24 @@ public class TenguSprite extends MobSprite {
 
 		isMoving = true;
 		play( run );
+		isMoving = true;
 	}
 
 	@Override
 	public void initAnimations() {
 		TextureFilm frames = new TextureFilm( texture, 14, 16 );
-
+		
 		idle = new Animation( 2, true );
 		idle.frames( frames, 0, 0, 0, 1 );
-
+		
 		run = new Animation( 15, false );
 		run.frames( frames, 2, 3, 4, 5, 0 );
-
+		
 		attack = new Animation( 15, false );
 		attack.frames( frames, 6, 7, 7, 0 );
-
+		
 		zap = attack.clone();
-
+		
 		die = new Animation( 8, false );
 		die.frames( frames, 8, 9, 10, 10, 10, 10, 10, 10 );
 	}
@@ -147,7 +148,7 @@ public class TenguSprite extends MobSprite {
 			Sample.INSTANCE.play(Assets.Sounds.HIT);
 		}
 	}
-
+	
 	@Override
 	public void onComplete( Animation anim ) {
 		if (anim == run) {

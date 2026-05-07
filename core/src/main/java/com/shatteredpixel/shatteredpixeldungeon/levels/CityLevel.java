@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
+import com.shatteredpixel.shatteredpixeldungeon.effects.particles.ElmoParticle;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.CityPainter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.BlazingTrap;
@@ -79,7 +80,7 @@ public class CityLevel extends RegularLevel {
 		//6 to 8, average 7
 		return 6+Random.chances(new float[]{1, 3, 1});
 	}
-	
+
 	@Override
 	protected int specialRooms(boolean forceMax) {
 		if (forceMax) return 3;
@@ -94,7 +95,7 @@ public class CityLevel extends RegularLevel {
 				.setGrass(feeling == Feeling.GRASS ? 0.80f : 0.20f, 3)
 				.setTraps(nTraps(), trapClasses(), trapChances());
 	}
-	
+
 	@Override
 	protected Class<?>[] trapClasses() {
 		return new Class[]{
@@ -110,7 +111,7 @@ public class CityLevel extends RegularLevel {
 				2, 2, 2, 2,
 				1, 1, 1, 1, 1, 1, 1, 1 };
 	}
-
+	
 	@Override
 	public String tileName( int tile ) {
 		switch (tile) {
@@ -145,15 +146,69 @@ public class CityLevel extends RegularLevel {
 				return super.tileDesc( tile, cell );
 		}
 	}
-
-	public static void addCityVisuals( Level level, Group group ) {
-		boolean isCityLevel = LevelScheme.getRegion(level) == LevelScheme.REGION_CITY;
-		for (int i=0; i < level.length(); i++) {
-			if (level.visualMap[i] == Terrain.WALL_DECO && (isCityLevel || level.visualRegions[i] == LevelScheme.REGION_CITY)) {
-				group.add( new Smoke( i ) );
-			}
+	
+	public static void addCityVisualsAtTile( int region, Level level, Group visuals, int i ) {
+		if (level.visualMap[i] == Terrain.WALL_DECO && Dungeon.level.isVisualRegionAtTile(i, region, LevelScheme.REGION_CITY)) {
+			visuals.add( new Smoke( i ) );
 		}
 	}
+
+	public static void addCityWallVisualsAtTile(int region, Level level, Group group, int i ) {
+		if (level.map[i] == Terrain.FLAMING_PEDESTAL || level.map[i] == Terrain.FLAMING_PEDESTAL_ALT) {
+			group.add( new GreenFlame( i ) );
+		}
+	}
+
+	public static class GreenFlame extends Emitter {
+
+		private int pos;
+
+		public static final Emitter.Factory factory = new Factory() {
+			@Override
+			public void emit( Emitter emitter, int index, float x, float y ) {
+				GreenFlameParticle p = (GreenFlameParticle)emitter.recycle( GreenFlameParticle.class );
+				p.reset( x, y );
+			}
+			@Override
+			public boolean lightMode() {
+				return true;
+			}
+		};
+
+		public GreenFlame( int pos ) {
+			super();
+
+			this.pos = pos;
+
+			PointF p = DungeonTilemap.raisedTileCenterToWorld( pos );
+			pos( p.x - 2, p.y - 5, 4, 4 );
+
+			pour( factory, 0.1f );
+		}
+
+		@Override
+		public void update() {
+			if (visible = (pos < Dungeon.level.heroFOV.length && Dungeon.level.heroFOV[pos])) {
+				super.update();
+				
+				if (Dungeon.level.visualMap[pos] != Terrain.FLAMING_PEDESTAL && Dungeon.level.visualMap[pos] != Terrain.FLAMING_PEDESTAL_ALT){
+					killAndErase();
+					return;
+				}
+			}
+		}
+
+	}
+
+	public static class GreenFlameParticle extends ElmoParticle {
+
+		public GreenFlameParticle(){
+			super();
+			acc.set( 0, -40 );
+		}
+
+	}
+
 	
 	public static class Smoke extends Emitter {
 		
@@ -183,6 +238,11 @@ public class CityLevel extends RegularLevel {
 		public void update() {
 			if (visible = (pos < Dungeon.level.heroFOV.length && Dungeon.level.heroFOV[pos])) {
 				super.update();
+				
+				if (Dungeon.level.visualMap[pos] != Terrain.WALL_DECO || !Dungeon.level.isVisualRegionAtTile(pos, LevelScheme.REGION_CITY)){
+					killAndErase();
+					return;
+				}
 			}
 		}
 	}

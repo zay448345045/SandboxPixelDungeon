@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.BiPredicate;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.SkeletonKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.Bag;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Catalog;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
@@ -41,6 +42,24 @@ import com.watabou.utils.IntFunction;
 import java.util.Objects;
 
 public abstract class Key extends Item {
+	
+	public enum Type {
+		IRON(IronKey.class),
+		GOLD(GoldenKey.class),
+		CRYSTAL(CrystalKey.class),
+		SKELETON(SkeletonKeyOld.class),
+		WORN(WornKey.class);
+		
+		private final Class<? extends Key> asKeyClass;
+		
+		Type(Class<? extends Key> asKeyClass) {
+			this.asKeyClass = asKeyClass;
+		}
+		
+		public Class<? extends Key> asKeyClass() {
+			return asKeyClass;
+		}
+	}
 
 	public static final float TIME_TO_UNLOCK = 1f;
 	
@@ -49,8 +68,13 @@ public abstract class Key extends Item {
 		unique = true;
 	}
 
+	protected Type type;
 	public String levelName;
 	public int cell;
+	
+	public Type type() {
+		return type;
+	}
 	
 	@Override
 	public boolean isSimilar( Item item ) {
@@ -69,25 +93,31 @@ public abstract class Key extends Item {
 
 	@Override
 	public boolean doPickUp(Hero hero, int pos) {
-		instantPickupKey(pos);
-		hero.spendAndNext( TIME_TO_PICK_UP );
+		instantPickupKey(hero, pos);
+		hero.spendAndNext( pickupDelay() );
 		Sample.INSTANCE.play( Assets.Sounds.ITEM );
 		return true;
 	}
 
 	@Override
 	public boolean collect(Bag bag) {
-		instantPickupKey(Dungeon.hero.pos);
+		instantPickupKey(Dungeon.hero, Dungeon.hero.pos);
 		return true;
 	}
 
-	public void instantPickupKey(int pos) {
+	public void instantPickupKey(Hero hero, int pos) {
 		Catalog.setSeen(getClass());
 		Statistics.itemTypesDiscovered.add(getClass());
 		GameScene.pickUpJournal(this, pos);
 		WndJournal.last_index = 0;
 		Notes.add(this);
+		Sample.INSTANCE.play( Assets.Sounds.ITEM );
+		hero.spendAndNext( pickupDelay() );
 		GameScene.updateKeyDisplay();
+
+		if (hero.buff(SkeletonKey.KeyReplacementTracker.class) != null){
+			hero.buff(SkeletonKey.KeyReplacementTracker.class).processExcessKeys();
+		}
 	}
 
 	private static final String LEVEL_NAME = "levelName";

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Blob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.BlobStoreMap;
+import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.SacrificialFire;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.SmokeScreen;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Web;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.WellWater;
@@ -42,8 +43,10 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Burning;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.ChampionEnemy;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.LockedFloor;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.LostInventory;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MagicalSight;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MindVision;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MindVisionImmunity;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Ooze;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.PinCushion;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Regeneration;
@@ -88,7 +91,10 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.quests.WandmakerQuest;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomTileLoader;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
+import com.shatteredpixel.shatteredpixeldungeon.effects.CellEmitter;
+import com.shatteredpixel.shatteredpixeldungeon.effects.Splash;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.FlowParticle;
+import com.shatteredpixel.shatteredpixeldungeon.effects.particles.SacrificialParticle;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.WindParticle;
 import com.shatteredpixel.shatteredpixeldungeon.items.Amulet;
 import com.shatteredpixel.shatteredpixeldungeon.items.EquipableItem;
@@ -97,11 +103,15 @@ import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.Stylus;
 import com.shatteredpixel.shatteredpixeldungeon.items.Torch;
+import com.shatteredpixel.shatteredpixeldungeon.items.armor.ClassArmor;
+import com.shatteredpixel.shatteredpixeldungeon.items.armor.ClothArmor;
+import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.Artifact;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TalismanOfForesight;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TimekeepersHourglass;
 import com.shatteredpixel.shatteredpixeldungeon.items.bombs.Bomb;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.Potion;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfStrength;
+import com.shatteredpixel.shatteredpixeldungeon.items.quest.EscapeCrystal;
 import com.shatteredpixel.shatteredpixeldungeon.items.quest.Pickaxe;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
@@ -138,10 +148,12 @@ import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.CustomTilemap;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.DungeonTileSheet;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndMessage;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndTitledMessage;
+import com.watabou.NotAllowedInLua;
 import com.watabou.gltextures.TextureCache;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.Group;
@@ -175,7 +187,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 
 	public static final String SURFACE = "surface", NONE = "none", ANY = "any" + (char) 30 + (char) 31;
 
-	public static enum Feeling {
+	public enum Feeling {
 		NONE,
 		CHASM,
 		WATER,
@@ -255,10 +267,9 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 	public SparseArray<Barrier> barriers;
 	public SparseArray<ArrowCell> arrowCells;
 	public SparseArray<Checkpoint> checkpoints;
-	public HashSet<CustomTilemap> customTiles;
-	public HashSet<CustomTilemap> customWalls;
+	public ArrayList<CustomTilemap> customTiles;
+	public ArrayList<CustomTilemap> customWalls;
 	public SparseArray<CoinDoor> coinDoors;
-
 	protected ArrayList<Item> itemsToSpawn = new ArrayList<>();
 
 	protected Group visuals;
@@ -436,10 +447,9 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			barriers = new SparseArray<>();
 			arrowCells = new SparseArray<>();
 			checkpoints = new SparseArray<>();
-			customTiles = new HashSet<>();
-			customWalls = new HashSet<>();
+			customTiles = new ArrayList<>();
+			customWalls = new ArrayList<>();
 			coinDoors = new SparseArray<>();
-
 		} while (!build());
 		
 		buildFlagMaps();
@@ -454,6 +464,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		visualRegions = new int[map.length];
 	}
 	
+	@NotAllowedInLua
 	public void setSize(int w, int h){
 		
 		width = w;
@@ -642,8 +653,8 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 
 		version = bundle.getInt( VERSION );
 		
-		//saves from before v1.4.3 are not supported
-		if (version < SandboxPixelDungeon.v1_4_3){
+		//saves from before v2.5.4 are not supported
+		if (version < SandboxPixelDungeon.v2_5_4){
 			throw new RuntimeException("old save");
 		}
 
@@ -661,10 +672,9 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		barriers = new SparseArray<>();
 		arrowCells = new SparseArray<>();
 		checkpoints = new SparseArray<>();
-		customTiles = new HashSet<>();
-		customWalls = new HashSet<>();
+		customTiles = new ArrayList<>();
+		customWalls = new ArrayList<>();
 		coinDoors = new SparseArray<>();
-
 		map		= bundle.getIntArray( MAP );
 
 		if (initForPlayCalled) {
@@ -727,6 +737,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		Zone.setupZoneArray(this);
 		
 		collection = bundle.getCollection( HEAPS );
+		heaps.clear();
 		for (Bundlable h : collection) {
 			Heap heap = (Heap)h;
 			if (!heap.isEmpty())
@@ -734,36 +745,42 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		}
 		
 		collection = bundle.getCollection( PLANTS );
+		plants.clear();
 		for (Bundlable p : collection) {
 			Plant plant = (Plant)p;
 			plants.put( plant.pos, plant );
 		}
 
 		collection = bundle.getCollection( TRAPS );
+		traps.clear();
 		for (Bundlable p : collection) {
 			Trap trap = (Trap)p;
 			traps.put( trap.pos, trap );
 		}
 
 		collection = bundle.getCollection(SIGNS);
+		signs.clear();
 		for (Bundlable p : collection) {
 			Sign sign = (Sign) p;
 			signs.put(sign.pos, sign);
 		}
 
 		collection = bundle.getCollection(BARRIERS);
+		barriers.clear();
 		for (Bundlable p : collection) {
 			Barrier barrier = (Barrier) p;
 			barriers.put(barrier.pos, barrier);
 		}
 
 		collection = bundle.getCollection(ARROW_CELLS);
+		arrowCells.clear();
 		for (Bundlable p : collection) {
 			ArrowCell arrowCell = (ArrowCell) p;
 			arrowCells.put(arrowCell.pos, arrowCell);
 		}
 
 		collection = bundle.getCollection(CHECKPOINTS);
+		checkpoints.clear();
 		for (Bundlable p : collection) {
 			Checkpoint cp = (Checkpoint) p;
 			checkpoints.put(cp.pos, cp);
@@ -772,6 +789,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		visualMap = map.clone();
 		visualRegions = new int[map.length];
 		collection = bundle.getCollection( CUSTOM_TILES );
+		customTiles.clear();
 		for (Bundlable p : collection) {
 			CustomTilemap vis = (CustomTilemap)p;
 			if (vis instanceof CustomTileLoader.UserCustomTile) {
@@ -787,6 +805,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		}
 
 		collection = bundle.getCollection( CUSTOM_WALLS );
+		customWalls.clear();
 		for (Bundlable p : collection) {
 			CustomTilemap vis = (CustomTilemap)p;
 			if(!(vis instanceof CustomTileLoader.UserCustomTile) || ((CustomTileLoader.UserCustomTile) vis).getIdentifier() != null)
@@ -794,12 +813,14 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		}
 
 		collection = bundle.getCollection(COIN_DOORS);
+		coinDoors.clear();
 		for (Bundlable c : collection) {
 			CoinDoor cost = (CoinDoor) c;
 			coinDoors.put(cost.pos, cost);
 		}
 
 		collection = bundle.getCollection( MOBS );
+		mobs.clear();
 		for (Bundlable m : collection) {
 			Mob mob = (Mob)m;
 			if (mob != null) {
@@ -810,12 +831,14 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		bossMob = bossMobStatic;
 
 		collection = bundle.getCollection( BLOBS );
+		blobs.clear();
 		for (Bundlable b : collection) {
 			Blob blob = (Blob)b;
 			blobs.put( blob.getClass(), blob );
 		}
 
 		collection = bundle.getCollection( PARTICLES );
+		particles.clear();
 		for (Bundlable b : collection) {
 			CustomParticle p = (CustomParticle) b;
 			particles.put(p.particleID, p);
@@ -1004,7 +1027,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 	
 	abstract protected boolean build();
 	
-	private List<Mob> mobsToSpawn = new ArrayList<>();
+	private final List<Mob> mobsToSpawn = new ArrayList<>();
 	
 	public Mob createMob() {
 		return MobSpawner.createMob(mobsToSpawn, this::getMobRotation);
@@ -1107,6 +1130,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		if (transition.destType == LevelTransition.Type.BRANCH_ENTRANCE) {
 
 			if (transition.destBranch == QuestLevels.MINING.ID) transitionEnterBlacksmithMine(hero, transition);
+			if (transition.destBranch == QuestLevels.IMP.ID) transitionEnterImpVault(hero, transition);
 
 			return false;
 		}
@@ -1187,6 +1211,9 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		if (foodImmune != null) foodImmune.detach();
 		ScrollOfChallenge.ChallengeArena arena = Dungeon.hero.buff(ScrollOfChallenge.ChallengeArena.class);
 		if (arena != null) arena.detach();
+		//awareness also doesn't, honestly it's weird that it's a buff
+		Awareness awareness = Dungeon.hero.buff(Awareness.class);
+		if (awareness != null) awareness.detach();
 
 		Char ally = Stasis.getStasisAlly();
 		if (Char.hasProp(ally, Char.Property.IMMOVABLE)){
@@ -1295,6 +1322,54 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			});
 		}
 	}
+	
+	private void transitionEnterImpVault(Hero hero, LevelTransition transition) {
+		if (hero.buff(AscensionChallenge.class) != null
+				|| hero.buff(LostInventory.class) != null){
+			return;
+		}
+		
+		Game.runOnRenderThread(new Callback() {
+			@Override
+			public void call() {
+				GameScene.show( new WndOptions( Icons.SHPX.get(),
+						Messages.titleCase(Messages.get(CityLevel.class, "upcoming_quest_intro_title")),
+						Messages.get(CityLevel.class, "upcoming_quest_intro_body"),
+						Messages.get(CityLevel.class, "upcoming_quest_intro_yes"),
+						Messages.get(CityLevel.class, "upcoming_quest_intro_no")){
+					@Override
+					protected void onSelect(int index) {
+						if (index == 0){
+							
+							//for full release this will remove any non revive persists buff, but for now just do item buffs
+							for (Buff b : hero.buffs()){
+								if (b instanceof Wand.Charger
+										|| b instanceof Artifact.ArtifactBuff
+										|| b instanceof Ring.RingBuff
+										//not melee charger, Duelist should retain her charge count
+										|| b instanceof ClassArmor.Charger){
+									b.detach();
+								}
+							}
+							
+							//not ideal handler for a crash, should improve this
+							EscapeCrystal crystal = hero.belongings.getItem(EscapeCrystal.class);
+							if (crystal == null) {
+								crystal = new EscapeCrystal();
+								crystal.storeHeroBelongings(hero);
+								crystal.returnCell = hero.pos;
+								crystal.collect();
+							}
+							hero.belongings.armor = new ClothArmor();
+							hero.belongings.armor.identify();
+							hero.updateHT( false );
+							defaultActiveTransitionImpl(hero, transition);
+						}
+					}
+				} );
+			}
+		});
+	}
 
 	public final LevelTransition addRegularEntrance(int cell) {
 		LevelTransition result = null;
@@ -1381,21 +1456,11 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			visuals.clear();
 			visuals.camera = null;
 		}
+		
+		int region = levelScheme.getVisualRegion();
 		for (int i=0; i < length(); i++) {
-			if (pit[i]) {
-				visuals.add( new WindParticle.Wind( i ) );
-				if (i >= width() && water[i-width()]) {
-					visuals.add( new FlowParticle.Flow( i - width() ) );
-				}
-			}
+			addVisualsAtTile(i, region);
 		}
-		
-		SewerLevel  .addSewerVisuals( this, visuals);
-		PrisonLevel .addPrisonVisuals(this, visuals);
-		CavesLevel  .addCavesVisuals( this, visuals);
-		CityLevel   .addCityVisuals(  this, visuals);
-		HallsLevel  .addHallsVisuals( this, visuals);
-		
 		SewerBossLevel.addSewerBossVisuals(this, visuals);
 		
 		return visuals;
@@ -1409,9 +1474,46 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			wallVisuals.clear();
 			wallVisuals.camera = null;
 		}
+		int region = levelScheme.getVisualRegion();
+		for (int i=0; i < length(); i++) {
+			addWallVisualsAtTile(i, region);
+		}
 		return wallVisuals;
 	}
 
+	public void addVisualsAtTile(int i) {
+		addVisualsAtTile(i, levelScheme.getVisualRegion());
+	}
+	
+	public void addVisualsAtTile(int i, int region) {
+		if (pit[i]) {
+			visuals.add( new WindParticle.Wind( i ) );
+			if (i >= width() && water[i-width()]) {
+				visuals.add( new FlowParticle.Flow( i - width() ) );
+			}
+		}
+		SewerLevel  .addSewerVisualsAtTile( region, this, visuals, i);
+		PrisonLevel .addPrisonVisualsAtTile(region, this, visuals, i);
+		CavesLevel  .addCavesVisualsAtTile( region, this, visuals, i);
+		CityLevel   .addCityVisualsAtTile(  region, this, visuals, i);
+		HallsLevel  .addHallsVisualsAtTile( region, this, visuals, i);
+	}
+	
+	public void addWallVisualsAtTile(int i) {
+		addWallVisualsAtTile(i, levelScheme.getVisualRegion());
+	}
+	
+	public void addWallVisualsAtTile(int i, int region) {
+		CityLevel   .addCityWallVisualsAtTile(region, this, wallVisuals, i);
+	}
+	
+	public boolean isVisualRegionAtTile(int pos, int targetRegion) {
+		return isVisualRegionAtTile(pos, levelScheme.getVisualRegion(), targetRegion);
+	}
+	
+	public boolean isVisualRegionAtTile(int pos, int levelRegion, int targetRegion) {
+		return levelRegion == targetRegion && visualRegions[pos] == LevelScheme.REGION_NONE || visualRegions[pos] == targetRegion;
+	}
 
 	public int mobLimit() {
 		return 0;
@@ -1439,6 +1541,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 	private MobSpawner respawner;
 	private ZoneRespawner[] zoneRespawner;
 
+	@NotAllowedInLua
 	public Actor addRespawner() {
 		if (respawner == null){
 			respawner = new MobSpawner();
@@ -1451,7 +1554,8 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		}
 		return respawner;
 	}
-
+	
+	@NotAllowedInLua
 	public Actor[] addZoneRespawner() {
 		if (zoneRespawner == null){
 			Collection<Zone> zones = new HashSet<>(5);
@@ -1558,7 +1662,9 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 
 		Mob mob = zone == null ? createMob() : zone.createMob();
 		if (mob == null) return false;
-		mob.state = mob.WANDERING;
+		if (mob.state != mob.PASSIVE) {
+			mob.state = mob.WANDERING;
+		}
 
 		return spawnMob(mob, disLimit, zone);
 	}
@@ -1785,6 +1891,18 @@ public abstract class Level implements Bundlable, Copyable<Level> {
                 }
             }
         }
+		
+		if (Char.hasProp(Dungeon.hero, Char.Property.PERMEABLE)) {
+			for (int i = 0; i < passableHero.length; i++) {
+				if (!passableHero[i] && insideMap(i)) {
+					Barrier b;
+					if ((Terrain.flags[map[i]] & Terrain.SOLID) != 0
+							&& ((b = barriers.get(i)) == null || !b.blocksChar(Dungeon.hero))) {
+						passableHero[i] = true;
+					}
+				}
+			}
+		}
 
 	}
 
@@ -1823,6 +1941,14 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			}
 		} else {
 			passableHero[cell] = passableMob[cell] = passableAlly[cell] = false;
+			
+			if (Char.hasProp(Dungeon.hero, Char.Property.PERMEABLE) && insideMap(cell)) {
+				Barrier b;
+				if ((Terrain.flags[map[cell]] & Terrain.SOLID) != 0
+						&& ((b = barriers.get(cell)) == null || !b.blocksChar(Dungeon.hero))) {
+					passableHero[cell] = true;
+				}
+			}
 		}
 	}
 
@@ -1924,7 +2050,26 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		} else c.cost = cost;
 	}
 
-	public void destroy(int pos ) {
+	//updates open space both on the cell itself and adjacent cells
+	public void updateOpenSpace(int cell){
+		for (int i : PathFinder.NEIGHBOURS9) {
+			if (solid[cell+i]){
+				openSpace[cell+i] = false;
+			} else {
+				for (int j = 1; j < PathFinder.CIRCLE8.length; j += 2){
+					if (solid[cell+i+PathFinder.CIRCLE8[j]]) {
+						openSpace[cell+i] = false;
+					} else if (!solid[cell+i+PathFinder.CIRCLE8[(j+1)%8]]
+							&& !solid[cell+i+PathFinder.CIRCLE8[(j+2)%8]]){
+						openSpace[cell+i] = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	public void destroy( int pos ) {
 		//if raw tile type is flammable or empty
 		int terr = map[pos];
 		if (terr == Terrain.EMPTY || terr == Terrain.EMPTY_DECO
@@ -1932,6 +2077,16 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			removeSimpleCustomTile(pos);
 			set(pos, Terrain.EMBERS);
 		}
+		
+		//if we're burning sewers barrels
+		if (terr == Terrain.BARREL){
+			set(pos, Terrain.WATER);
+			Splash.at(pos, 0xFF507B5D, 10);
+		} else if (terr == Terrain.BARREL_ALT){
+			set(pos, Terrain.EMPTY_SP);
+			Splash.at(pos, 0xFF507B5D, 10);
+		}
+		
 		blobs.doOnEach(Web.class, b -> b.clear(pos));
 	}
 
@@ -2008,7 +2163,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		level.avoid[cell]			= (flags & Terrain.AVOID) != 0;
 		level.pit[cell]			    = (flags & Terrain.PIT) != 0;
 		level.water[cell]			= terrain == Terrain.WATER;
-
+		
 		if (!level.insideMap(cell)) {
 			level.passable[cell] = level.passableHero[cell] = level.passableMob[cell] = level.passableAlly[cell] = level.avoid[cell] = false;
 			level.losBlocking[cell] = level.solid[cell] = true;
@@ -2229,6 +2384,13 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 		if (!ch.isImmune(Web.class) && Blob.volumeAt(ch.pos, Web.class) > 0){
 			blobs.doOnEach(Web.class, b -> b.clear(ch.pos));
 			Web.affectChar( ch );
+		}
+
+		if (Blob.volumeAt(ch.pos, SacrificialFire.class) > 0 && ch.buff( SacrificialFire.Marked.class ) == null){
+			if (Dungeon.level.heroFOV[ch.pos]) {
+				CellEmitter.get(ch.pos).burst( SacrificialParticle.FACTORY, 5 );
+			}
+			Buff.prolong( ch, SacrificialFire.Marked.class, SacrificialFire.Marked.DURATION );
 		}
 
 		if (!CustomDungeon.isEditing()) {
@@ -2541,7 +2703,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			Dungeon.hero.mindVisionEnemies.clear();
 			if (c.buff( MindVision.class ) != null) {
 				for (Mob mob : mobs) {
-					if (mob instanceof Mimic && mob.alignment == Char.Alignment.NEUTRAL && ((Mimic) mob).stealthy()){
+					if (mob instanceof Mimic && mob.alignment == Char.Alignment.NEUTRAL && ((Mimic) mob).stealthy() || mob.buff(MindVisionImmunity.class) != null){
 						continue;
 					}
 					for (int i : PathFinder.NEIGHBOURS9) {
@@ -2642,8 +2804,8 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 
 	}
 
-	public boolean isLevelExplored( String levelName ){
-		return false;
+	public float levelExplorePercent( String levelName ){
+		return 0;
 	}
 	
 	public int distance( int a, int b ) {
@@ -2730,6 +2892,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			case Terrain.COIN_DOOR:
 				return Messages.get(Level.class, "coin_door_name");
 			case Terrain.LOCKED_DOOR:
+			case Terrain.HERO_LKD_DR:
 				return Messages.get(Level.class, "locked_door_name");
 			case Terrain.CRYSTAL_DOOR:
 				return Messages.get(Level.class, "crystal_door_name");
@@ -2763,6 +2926,24 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 				return Messages.get(MiningLevel.class, "crystal_name");
 			case Terrain.MINE_BOULDER:
 				return Messages.get(MiningLevel.class, "boulder_name");
+			
+			case Terrain.BARREL:
+			case Terrain.BARREL_ALT:
+				return Messages.get(SewerLevel.class, "region_deco_name");
+			case Terrain.CAGE:
+				return Messages.get(PrisonLevel.class, "region_deco_name");
+			case Terrain.CAGE_ALT:
+				return Messages.get(PrisonLevel.class, "region_deco_alt_name");
+			case Terrain.METAL_STRUCTURE:
+			case Terrain.METAL_STRUCTURE_ALT:
+				return Messages.get(CavesLevel.class, "region_deco_name");
+			case Terrain.FLAMING_PEDESTAL:
+			case Terrain.FLAMING_PEDESTAL_ALT:
+				return Messages.get(CityLevel.class, "region_deco_name");
+			case Terrain.RUBBLE:
+			case Terrain.RUBBLE_ALT:
+				return Messages.get(HallsLevel.class, "region_deco_name");
+				
 			default:
 				return Messages.get(Level.class, "default_name");
 		}
@@ -2792,6 +2973,7 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 			case Terrain.COIN_DOOR:
 				return Messages.get(Level.class, "coin_door_desc");
 			case Terrain.LOCKED_DOOR:
+			case Terrain.HERO_LKD_DR:
 				return Messages.get(Level.class, "locked_door_desc");
 			case Terrain.CRYSTAL_DOOR:
 				return Messages.get(Level.class, "crystal_door_desc");
@@ -2815,6 +2997,24 @@ public abstract class Level implements Bundlable, Copyable<Level> {
 				return Messages.get(MiningLevel.class, "crystal_desc");
 			case Terrain.MINE_BOULDER:
 				return Messages.get(MiningLevel.class, "boulder_desc");
+			
+			case Terrain.BARREL:
+			case Terrain.BARREL_ALT:
+				return Messages.get(SewerLevel.class, "region_deco_desc");
+			case Terrain.CAGE:
+				return Messages.get(PrisonLevel.class, "region_deco_desc");
+			case Terrain.CAGE_ALT:
+				return Messages.get(PrisonLevel.class, "region_deco_alt_desc");
+			case Terrain.METAL_STRUCTURE:
+			case Terrain.METAL_STRUCTURE_ALT:
+				return Messages.get(CavesLevel.class, "region_deco_desc");
+			case Terrain.FLAMING_PEDESTAL:
+			case Terrain.FLAMING_PEDESTAL_ALT:
+				return Messages.get(CityLevel.class, "region_deco_desc");
+			case Terrain.RUBBLE:
+			case Terrain.RUBBLE_ALT:
+				return Messages.get(HallsLevel.class, "region_deco_desc");
+				
 			default:
 				return "";
 		}

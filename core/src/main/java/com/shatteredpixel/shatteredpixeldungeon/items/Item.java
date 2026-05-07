@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,10 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Blindness;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Degrade;
+import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Belongings;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.customizables.Customizable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.effects.Speck;
@@ -68,7 +68,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-public class Item extends GameObject implements Customizable, Copyable<Item> {
+public class Item extends GameObject implements Customizable {
 
 	protected static final String TXT_TO_STRING_LVL		= "%s %+d";
 	protected static final String TXT_TO_STRING_X		= "%s x%d";
@@ -114,6 +114,8 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 	// whether an item can be included in heroes remains
 	public boolean bones = false;
 
+	public int customNoteID = -1;
+	
 	// only for hero start items, 0 means not in toolbar, first index is 1
 	public int reservedQuickslot;
 
@@ -151,7 +153,7 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 			if (hero.sprite != null) {
 				GameScene.pickUp(this, pos);
 				Sample.INSTANCE.play(Assets.Sounds.ITEM);
-				hero.spendAndNext(TIME_TO_PICK_UP);
+				hero.spendAndNext(pickupDelay());
 			}
 			return true;
 			
@@ -615,14 +617,15 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 	public String info() {
 
 		if (Dungeon.hero != null) {
-			Notes.CustomRecord note;
-			if (this instanceof EquipableItem) {
-				note = Notes.findCustomRecord(((EquipableItem) this).customNoteID);
+			Notes.CustomRecord note = Notes.findCustomRecord(customNoteID);
+			if (note != null) {
+				//we swap underscore(0x5F) with low macron(0x2CD) here to avoid highlighting in the item window
+				return Messages.get(this, "custom_note", note.title().replace('_', 'ˍ')) + "\n\n" + desc();
 			} else {
 				note = Notes.findCustomRecord(getClass());
-			}
-			if (note != null){
-				return Messages.get(this, "custom_note", note.title()) + "\n\n" + desc();
+				if (note != null) {
+					return Messages.get(this, "custom_note_type", note.title()) + "\n\n" + desc();
+				}
 			}
 		}
 
@@ -711,6 +714,8 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 	private static final String IDENTIFY_ON_START = "identify_on_start";
 	private static final String QUICKSLOT		= "quickslotpos";
 	private static final String KEPT_LOST       = "kept_lost";
+	private static final String CUSTOM_NOTE_ID = "custom_note_id";
+	
 	private static final String RESERVED_QUICKSLOT = "reserved_quickslot";
 	private static final String SPREAD_IF_LOOT = "spread_if_loot";
 	private static final String ONLY_CHECK_TYPE_IF_RECIPE = "only_check_type_if_recipe";
@@ -734,6 +739,7 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 			bundle.put( QUICKSLOT, Dungeon.quickslot.getSlot(this) );
 		}
 		bundle.put( KEPT_LOST, keptThoughLostInvent );
+		if (customNoteID != -1)     bundle.put(CUSTOM_NOTE_ID, customNoteID);
 		bundle.put( RESERVED_QUICKSLOT, reservedQuickslot );
 		bundle.put( SPREAD_IF_LOOT, spreadIfLoot );
 		bundle.put( ONLY_CHECK_TYPE_IF_RECIPE, onlyCheckTypeIfRecipe );
@@ -771,13 +777,15 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 		
 		cursed	= bundle.getBoolean( CURSED );
 
-		//only want to populate slot on first load.
-		if (Dungeon.hero == null) {
+		//only want to populate slots when restoring belongings
+		if (Belongings.bundleRestoring) {
 			if (bundle.contains(QUICKSLOT)) {
 				Dungeon.quickslot.setSlot(bundle.getInt(QUICKSLOT), this);
 			}
 		}
 
+		keptThoughLostInvent = bundle.getBoolean( KEPT_LOST );
+		if (bundle.contains(CUSTOM_NOTE_ID))    customNoteID = bundle.getInt(CUSTOM_NOTE_ID);
         keptThoughLostInvent = bundle.getBoolean(KEPT_LOST);
         reservedQuickslot = bundle.getInt(RESERVED_QUICKSLOT);
         spreadIfLoot = bundle.getBoolean(SPREAD_IF_LOOT);
@@ -796,7 +804,9 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 		if (template == null) return;
 		if (getClass() != template.getClass()) return;
 		Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
 		bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
 		bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
 //		int pos = this.pos;
@@ -835,7 +845,7 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 		
 		if (user == Dungeon.hero) QuickSlotButton.target(enemy);
 		
-		final float delay = castDelay(user, dst);
+		final float delay = castDelay(user, cell);
 		
 		Callback callback;
 		if (enemy != null) {
@@ -869,28 +879,15 @@ public class Item extends GameObject implements Customizable, Copyable<Item> {
 			};
 		}
 		
-		//same condition as in doAttack()
-		if (!( user.sprite != null && (user.sprite.visible || enemy != null && enemy.sprite.visible) )) {
-			callback.call();
-		} else {
-			MissileSprite missileSprite = ((MissileSprite) user.sprite.parent.recycle(MissileSprite.class));
-			
-			if (enemy != null) {
-				missileSprite.reset(user.sprite,
-						enemy.sprite,
-						this,
-						callback);
-			} else {
-				missileSprite.reset(user.sprite,
-						cell,
-						this,
-						callback);
-			}
-		}
+		MissileSprite.missileFromChar(this, user.sprite, cell, callback);
 	}
 	
-	public float castDelay( Char user, int dst ){
+	public float castDelay( Char user, int cell ){
 		return TIME_TO_THROW;
+	}
+
+	public float pickupDelay(){
+		return TIME_TO_PICK_UP;
 	}
 	
 	protected static Hero curUser = null;

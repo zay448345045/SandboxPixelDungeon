@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,10 +55,12 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.MirrorImage;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.PrismaticImage;
 import com.shatteredpixel.shatteredpixeldungeon.editor.ArrowCell;
 import com.shatteredpixel.shatteredpixeldungeon.editor.Barrier;
+import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.Zone;
 import com.shatteredpixel.shatteredpixeldungeon.effects.FloatingText;
 import com.shatteredpixel.shatteredpixeldungeon.effects.Speck;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.ShadowParticle;
+import com.shatteredpixel.shatteredpixeldungeon.items.BrokenSeal;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.Armor;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.curses.Bulk;
@@ -79,6 +81,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfTeleportat
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.exotic.ScrollOfChallenge;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.exotic.ScrollOfPsionicBlast;
 import com.shatteredpixel.shatteredpixeldungeon.items.stones.StoneOfAggression;
+import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.FerretTuft;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfBlastWave;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfFireblast;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfFrost;
@@ -100,6 +103,7 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.features.Door;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.GeyserTrap;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.GnollRockfallTrap;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.GrimTrap;
+import com.shatteredpixel.shatteredpixeldungeon.messages.Languages;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.plants.Earthroot;
 import com.shatteredpixel.shatteredpixeldungeon.plants.Swiftthistle;
@@ -108,6 +112,7 @@ import com.shatteredpixel.shatteredpixeldungeon.sprites.CharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.MobSprite;
 import com.shatteredpixel.shatteredpixeldungeon.ui.TargetHealthIndicator;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
+import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.Bundlable;
 import com.watabou.utils.Bundle;
@@ -154,7 +159,7 @@ public abstract class Char extends Actor {
 	
 	public boolean[] fieldOfView = null;
 	
-	private LinkedHashSet<Buff> buffs = new LinkedHashSet<>();
+	private final LinkedHashSet<Buff> buffs = new LinkedHashSet<>();
 
 	public Zone currentZoneBuffs;
 
@@ -213,14 +218,10 @@ public abstract class Char extends Actor {
 	public boolean canInteract(Char c){
 		if (Dungeon.level.adjacent( pos, c.pos )){
 			return true;
-		} else if (c instanceof Hero
+		} else return c instanceof Hero
 				&& alignment == Alignment.ALLY
 				&& !hasProp(this, Property.IMMOVABLE)
-				&& Dungeon.level.distance(pos, c.pos) <= 2*Dungeon.hero.pointsInTalent(Talent.ALLY_WARP)){
-			return true;
-		} else {
-			return false;
-		}
+				&& Dungeon.level.distance(pos, c.pos) <= 2 * Dungeon.hero.pointsInTalent(Talent.ALLY_WARP);
 	}
 	
 	//swaps places by default
@@ -348,11 +349,11 @@ public abstract class Char extends Actor {
 
 		Char defaultChar = DefaultStatsCache.getDefaultObject(getClass());
 		if (defaultChar != null) {
-			if (defaultChar.damageReductionMax != damageReductionMax) bundle.put(DAMAGE_REDUCTION_MAX, damageReductionMax);
-			if (defaultChar.attackSpeed != attackSpeed) bundle.put(ATTACK_SPEED, attackSpeed);
-			if (defaultChar.baseSpeed != baseSpeed) bundle.put(SPEED, baseSpeed);
-			if (defaultChar.viewDistance != viewDistance) bundle.put(VIEW_DISTANCE, viewDistance);
-			if (!defaultChar.properties.equals(properties)) {
+			if (defaultChar.damageReductionMax != damageReductionMax || storeEverythingInBundle) bundle.put(DAMAGE_REDUCTION_MAX, damageReductionMax);
+			if (defaultChar.attackSpeed != attackSpeed || storeEverythingInBundle) bundle.put(ATTACK_SPEED, attackSpeed);
+			if (defaultChar.baseSpeed != baseSpeed || storeEverythingInBundle) bundle.put(SPEED, baseSpeed);
+			if (defaultChar.viewDistance != viewDistance || storeEverythingInBundle) bundle.put(VIEW_DISTANCE, viewDistance);
+			if (!defaultChar.properties.equals(properties) || storeEverythingInBundle) {
 				int[] enumOrdinals = new int[properties.size()];
 				int index = 0;
 				for (Property p : properties) {
@@ -459,10 +460,10 @@ public abstract class Char extends Actor {
 			if (enemy.buff(GuidingLight.Illuminated.class) != null){
 				enemy.buff(GuidingLight.Illuminated.class).detach();
 				if (this == Dungeon.hero && Dungeon.hero.hasTalent(Talent.SEARING_LIGHT)){
-					dmg += 2 + 2*Dungeon.hero.pointsInTalent(Talent.SEARING_LIGHT);
+					dmg += 1 + 2*Dungeon.hero.pointsInTalent(Talent.SEARING_LIGHT);
 				}
 				if (this != Dungeon.hero && Dungeon.hero.subClass == HeroSubClass.PRIEST){
-					enemy.damage(Dungeon.hero.lvl, GuidingLight.INSTANCE);
+					enemy.damage(5+Dungeon.hero.lvl, GuidingLight.INSTANCE);
 				}
 			}
 
@@ -505,7 +506,7 @@ public abstract class Char extends Actor {
 			if (Dungeon.hero.alignment == enemy.alignment
 					&& Dungeon.hero.buff(AuraOfProtection.AuraBuff.class) != null
 					&& (Dungeon.level.distance(enemy.pos, Dungeon.hero.pos) <= 2 || enemy.buff(LifeLinkSpell.LifeLinkSpellBuff.class) != null)){
-				dmg *= 0.925f - 0.075f*Dungeon.hero.pointsInTalent(Talent.AURA_OF_PROTECTION);
+				dmg *= 0.9f - 0.1f*Dungeon.hero.pointsInTalent(Talent.AURA_OF_PROTECTION);
 			}
 
 			if (enemy.buff(MonkEnergy.MonkAbility.Meditate.MeditateResistance.class) != null){
@@ -629,7 +630,20 @@ public abstract class Char extends Actor {
 			
 		} else {
 
-			enemy.sprite.showStatus( CharSprite.NEUTRAL, enemy.defenseVerb() );
+			if (enemy.sprite != null){
+				if (hitMissIcon != -1){
+					//dooking is a playful sound Ferrets can make, like low pitched chirping
+					// I doubt this will translate, so it's only in English
+					if (hitMissIcon == FloatingText.MISS_TUFT && Messages.lang() == Languages.ENGLISH && Random.Int(10) == 0) {
+						enemy.sprite.showStatusWithIcon(CharSprite.NEUTRAL, "dooked", hitMissIcon);
+					} else {
+						enemy.sprite.showStatusWithIcon(CharSprite.NEUTRAL, enemy.defenseVerb(), hitMissIcon);
+					}
+					hitMissIcon = -1;
+				} else {
+					enemy.sprite.showStatus(CharSprite.NEUTRAL, enemy.defenseVerb());
+				}
+			}
 			if (visibleFight) {
 				//TODO enemy.defenseSound? currently miss plays for monks/crab even when they parry
 				Sample.INSTANCE.play(Assets.Sounds.MISS);
@@ -638,6 +652,7 @@ public abstract class Char extends Actor {
 			return false;
 			
 		}
+
 	}
 
 	public static int INFINITE_ACCURACY = 1_000_000;
@@ -667,8 +682,10 @@ public abstract class Char extends Actor {
 		//if accuracy or evasion are large enough, treat them as infinite.
 		//note that infinite evasion beats infinite accuracy
 		if (defStat >= INFINITE_EVASION){
+			hitMissIcon = FloatingText.getMissReasonIcon(attacker, acuStat, defender, INFINITE_EVASION);
 			return false;
 		} else if (acuStat >= INFINITE_ACCURACY){
+			hitMissIcon = FloatingText.getHitReasonIcon(attacker, INFINITE_ACCURACY, defender, defStat);
 			return true;
 		}
 
@@ -686,7 +703,8 @@ public abstract class Char extends Actor {
 			// + 3%/5%
 			acuRoll *= 1.01f + 0.02f*Dungeon.hero.pointsInTalent(Talent.BLESS);
 		}
-		
+		acuRoll *= accMulti;
+
 		float defRoll = Random.Float( defStat );
 		if (defender.buff(Bless.class) != null) defRoll *= 1.25f;
 		if (defender.buff(  Hex.class) != null) defRoll *= 0.8f;
@@ -701,9 +719,18 @@ public abstract class Char extends Actor {
 			// + 3%/5%
 			defRoll *= 1.01f + 0.02f*Dungeon.hero.pointsInTalent(Talent.BLESS);
 		}
-		
-		return (acuRoll * accMulti) >= defRoll;
+		defRoll *= FerretTuft.evasionMultiplier();
+
+		if (acuRoll >= defRoll){
+			hitMissIcon = FloatingText.getHitReasonIcon(attacker, acuRoll, defender, defRoll);
+			return true;
+		} else {
+			hitMissIcon = FloatingText.getMissReasonIcon(attacker, acuRoll, defender, defRoll);
+			return false;
+		}
 	}
+
+	private static int hitMissIcon = -1;
 
 
 
@@ -731,8 +758,8 @@ public abstract class Char extends Actor {
 	}
 	
 	public int drRoll() { //defenseRoll
-		int dr = Random.NormalIntRange(0, damageReductionMax);;
-
+		int dr = Random.NormalIntRange(0, damageReductionMax);
+		
 		dr += Random.NormalIntRange( 0 , Barkskin.currentLevel(this) );
 
 		return dr;
@@ -870,6 +897,11 @@ public abstract class Char extends Actor {
 					ch.damage(dmg, link);
 					if (!ch.isAlive()) {
 						link.detach();
+						if (ch == Dungeon.hero){
+							Badges.validateDeathFromFriendlyMagic();
+							Dungeon.fail(src);
+							GLog.n( Messages.get(LifeLink.class, "ondeath") );
+						}
 					}
 				}
 			}
@@ -878,12 +910,12 @@ public abstract class Char extends Actor {
 		//temporarily assign to a float to avoid rounding a bunch
 		float damage = dmg;
 
-		//if dmg is from a character we already reduced it in defenseProc
+		//if dmg is from a character we already reduced it in Char.attack
 		if (!(src instanceof Char)) {
 			if (Dungeon.hero.alignment == alignment
 					&& Dungeon.hero.buff(AuraOfProtection.AuraBuff.class) != null
 					&& (Dungeon.level.distance(pos, Dungeon.hero.pos) <= 2 || buff(LifeLinkSpell.LifeLinkSpellBuff.class) != null)) {
-				damage *= 0.925f - 0.075f*Dungeon.hero.pointsInTalent(Talent.AURA_OF_PROTECTION);
+				damage *= 0.9f - 0.1f*Dungeon.hero.pointsInTalent(Talent.AURA_OF_PROTECTION);
 			}
 		}
 
@@ -964,22 +996,21 @@ public abstract class Char extends Actor {
 			buff( Paralysis.class ).processDamage(dmg);
 		}
 
-		int shielded = dmg;
-		//FIXME: when I add proper damage properties, should add an IGNORES_SHIELDS property to use here.
-		if (!(src instanceof Hunger)){
-			for (ShieldBuff s : buffs(ShieldBuff.class)){
-				dmg = s.absorbDamage(dmg);
-				if (dmg == 0) break;
-			}
+		BrokenSeal.WarriorShield shield = buff(BrokenSeal.WarriorShield.class);
+		if (!(src instanceof Hunger)
+				&& dmg > 0
+				//either HP is already half or below (ignoring shield)
+				// or the hit will reduce it to half or below
+				&& (HP <= HT/2 || HP + shielding() - dmg <= HT/2)
+				&& shield != null && !shield.coolingDown()){
+			sprite.showStatusWithIcon(CharSprite.POSITIVE, Integer.toString(buff(BrokenSeal.WarriorShield.class).maxShield()), FloatingText.SHIELDING);
+			shield.activate();
 		}
+
+		int shielded = dmg;
+		dmg = ShieldBuff.processDamage(this, dmg, src);
 		shielded -= dmg;
 		HP -= dmg;
-
-		if (HP > 0 && shielded > 0 && shielding() == 0){
-			if (this instanceof Hero && ((Hero) this).hasTalent(Talent.PROVOKED_ANGER)){
-				Buff.affect(this, Talent.ProvokedAngerTracker.class, 5f);
-			}
-		}
 
 		if (HP > 0 && buff(Grim.GrimTracker.class) != null){
 
@@ -1046,6 +1077,12 @@ public abstract class Char extends Actor {
 			if (src instanceof Corruption)                              icon = FloatingText.CORRUPTION;
 			if (src instanceof AscensionChallenge)                      icon = FloatingText.AMULET;
 
+			if ((icon == FloatingText.PHYS_DMG || icon == FloatingText.PHYS_DMG_NO_BLOCK) && hitMissIcon != -1){
+				if (icon == FloatingText.PHYS_DMG_NO_BLOCK) hitMissIcon += 18; //extra row
+				icon = hitMissIcon;
+			}
+			hitMissIcon = -1;
+
 			sprite.showStatusWithIcon(CharSprite.NEGATIVE, Integer.toString(dmg + shielded), icon);
 		}
 
@@ -1059,7 +1096,7 @@ public abstract class Char extends Actor {
 	}
 
 	//these are misc. sources of physical damage which do not apply armor, they get a different icon
-	private static HashSet<Class> NO_ARMOR_PHYSICAL_SOURCES = new HashSet<>();
+	private static final HashSet<Class> NO_ARMOR_PHYSICAL_SOURCES = new HashSet<>();
 	{
 		NO_ARMOR_PHYSICAL_SOURCES.add(CrystalSpire.SpireSpike.class);
 		NO_ARMOR_PHYSICAL_SOURCES.add(GnollGeomancer.Boulder.class);
@@ -1165,6 +1202,7 @@ public abstract class Char extends Actor {
 		super.spend( time / timeScale );
 	}
 
+	@NotAllowedInLua
 	public void spend_DO_NOT_CALL_UNLESS_ABSOLUTELY_NECESSARY( float time ){
 		spend(time);
 	}
@@ -1211,7 +1249,8 @@ public abstract class Char extends Actor {
 		if (buff(PotionOfCleansing.Cleanse.class) != null) { //cleansing buff
 			if (buff.type == Buff.buffType.NEGATIVE
 					&& !(buff instanceof AllyBuff)
-					&& !(buff instanceof LostInventory)){
+					&& !(buff instanceof LostInventory)
+					&& !CustomDungeon.isEditing()){
 				return false;
 			}
 		}
@@ -1242,6 +1281,7 @@ public abstract class Char extends Actor {
 
 	}
 
+	@NotAllowedInLua
 	protected void moveBuffSilentlyToOtherChar_ACCESS_ONLY_FOR_HeroMob(Buff buff, Char ch) {
 		buffs.remove(buff);
 		ch.buffs.add(buff);
@@ -1283,7 +1323,7 @@ public abstract class Char extends Actor {
 	}
 
 	public boolean shouldSpriteBeVisible(){
-		return Dungeon.level.heroFOV[pos] && (invisible <= 0 || Dungeon.hero.buff(MindVision.class) != null);
+		return Dungeon.level.heroFOV[pos] && (invisible <= 0 || Dungeon.hero.buff(MindVision.class) != null && buff(MindVisionImmunity.class) == null);
 	}
 
 	public float stealth() {
@@ -1353,7 +1393,8 @@ public abstract class Char extends Actor {
 	}
 	
 	public void onAttackComplete() {
-		next();
+		//apply changes here to Scorpio#onZapComplete!
+		next();//
 	}
 	
 	public void onOperateComplete() {
@@ -1432,6 +1473,7 @@ public abstract class Char extends Actor {
 		return props;
 	}
 
+	@NotAllowedInLua
 	public HashSet<Property> getPropertiesVar_ACCESS_ONLY_FOR_EDITING_UI() {
 		return properties;
 	}
@@ -1441,7 +1483,7 @@ public abstract class Char extends Actor {
 		PERMEABLE,//walls become passable (barriers not), excluding walls at the level border
 		LARGE,
 		IMMOVABLE ( new HashSet<Class>(),
-				new HashSet<Class>( Arrays.asList(Vertigo.class) )),
+				new HashSet<Class>(List.of(Vertigo.class))),
 		BOSS ( new HashSet<Class>( Arrays.asList(Grim.class, GrimTrap.class, ScrollOfRetribution.class, ScrollOfPsionicBlast.class)),
 				new HashSet<Class>( Arrays.asList(AllyBuff.class, Dread.class) )),
 		MINIBOSS ( new HashSet<Class>(),
@@ -1455,8 +1497,8 @@ public abstract class Char extends Actor {
 				new HashSet<Class>( Arrays.asList(Burning.class, Blazing.class))),
 		ICY ( new HashSet<Class>( Arrays.asList(WandOfFrost.class, Elemental.FrostElemental.class)),
 				new HashSet<Class>( Arrays.asList(Frost.class, Chill.class))),
-		ACIDIC ( new HashSet<Class>( Arrays.asList(Corrosion.class)),
-				new HashSet<Class>( Arrays.asList(Ooze.class))),
+		ACIDIC ( new HashSet<Class>(List.of(Corrosion.class)),
+				new HashSet<Class>(List.of(Ooze.class))),
 		ELECTRIC ( new HashSet<Class>( Arrays.asList(WandOfLightning.class, Shocking.class, Potential.class,
 										Electricity.class, ShockingDart.class, Elemental.ShockElemental.class )),
 				new HashSet<Class>()),
@@ -1466,7 +1508,7 @@ public abstract class Char extends Actor {
 				new HashSet<Class>( Arrays.asList(AllyBuff.class, Dread.class, Terror.class, Amok.class, Charm.class, Sleep.class,Paralysis.class, Frost.class, Chill.class, Slow.class, Speed.class) )),
 
 		AQUATIC ( new HashSet<Class>(),
-				new HashSet<Class>( Arrays.asList(Burning.class))),
+				new HashSet<Class>(List.of(Burning.class))),
 		FLYING ( new HashSet<Class>(),
 				new HashSet<Class>());
 
@@ -1475,8 +1517,8 @@ public abstract class Char extends Actor {
 			if (FLYING.ordinal() != 15) throw new RuntimeException("Char.Property: PLEASE MAKE SURE THAT THE ORDINALS ARE ALWAYS IN THE CORRECT ORDER!!!");
 		}
 
-		private HashSet<Class> resistances;
-		private HashSet<Class> immunities;
+		private final HashSet<Class> resistances;
+		private final HashSet<Class> immunities;
 		
 		Property(){
 			this(new HashSet<Class>(), new HashSet<Class>());

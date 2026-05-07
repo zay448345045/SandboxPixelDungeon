@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,6 @@ import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.watabou.NotAllowedInLua;
-
-import java.util.Map;
 
 @NotAllowedInLua
 public class WndSelectResourceFile extends Window {
@@ -65,14 +63,14 @@ public class WndSelectResourceFile extends Window {
 			}
 			
 			@Override
-			protected void onClick(Map.Entry<String, FileHandle> path) {
-				onSelect(path);
+			protected void onClick(String path, FileHandle file) {
+				onSelect(path, file);
 				hide();
 			}
 
 			@Override
-			protected boolean onLongClick(Map.Entry<String, FileHandle> path) {
-				super.onClick(path);
+			protected boolean onLongClick(String path, FileHandle file) {
+				super.onClick(path, file);
 				return true;
 			}
 		};
@@ -95,7 +93,7 @@ public class WndSelectResourceFile extends Window {
 		return true;
 	}
 
-	protected void onSelect(Map.Entry<String, FileHandle> path) {
+	protected void onSelect(String path, FileHandle file) {
 	}
 
 }

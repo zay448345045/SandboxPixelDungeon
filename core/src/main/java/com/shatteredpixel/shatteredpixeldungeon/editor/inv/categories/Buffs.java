@@ -5,6 +5,7 @@ import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomB
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.ui.WndNewCustomObject;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.elixirs.ElixirOfFeatherFall;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.exotic.PotionOfCleansing;
+import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.exotic.ScrollOfSirensSong;
 import com.shatteredpixel.shatteredpixeldungeon.items.stones.StoneOfAggression;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
@@ -17,7 +18,7 @@ import java.util.Locale;
 
 public final class Buffs extends GameObjectCategory<Buff> {
 
-    private static Buffs instance = new Buffs();
+    private static final Buffs instance = new Buffs();
 
     private final Champions CHAMPIONS = new Champions();
     private final Movement MOVEMENT = new Movement();
@@ -151,6 +152,7 @@ public final class Buffs extends GameObjectCategory<Buff> {
                     Blindness.class,
                     Light.class,
                     MindVision.class,
+                    MindVisionImmunity.class,
                     MagicalSight.class,
                     Foresight.class
             });
@@ -172,9 +174,12 @@ public final class Buffs extends GameObjectCategory<Buff> {
                     MagicImmune.class,
                     Drowsy.class,
                     MagicalSleep.class,
+                    ScrollOfSirensSong.Enthralled.class,
                     Recharging.class,
                     ArtifactRecharge.class,
 //                  EnhancedRings.class,
+					
+					ColorBuff.class
             });
         }
     }

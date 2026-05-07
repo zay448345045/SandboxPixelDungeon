@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +27,23 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Belongings;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Shopkeeper;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
-import com.shatteredpixel.shatteredpixeldungeon.items.*;
+import com.shatteredpixel.shatteredpixeldungeon.items.Ankh;
+import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
+import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
+import com.shatteredpixel.shatteredpixeldungeon.items.Honeypot;
+import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.items.Stylus;
+import com.shatteredpixel.shatteredpixeldungeon.items.Torch;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.LeatherArmor;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.MailArmor;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.PlateArmor;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.ScaleArmor;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TimekeepersHourglass;
-import com.shatteredpixel.shatteredpixeldungeon.items.bags.*;
+import com.shatteredpixel.shatteredpixeldungeon.items.bags.Bag;
+import com.shatteredpixel.shatteredpixeldungeon.items.bags.MagicalHolster;
+import com.shatteredpixel.shatteredpixeldungeon.items.bags.PotionBandolier;
+import com.shatteredpixel.shatteredpixeldungeon.items.bags.ScrollHolder;
+import com.shatteredpixel.shatteredpixeldungeon.items.bags.VelvetPouch;
 import com.shatteredpixel.shatteredpixeldungeon.items.bombs.Bomb;
 import com.shatteredpixel.shatteredpixeldungeon.items.food.SmallRation;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfHealing;
@@ -43,6 +53,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfRemoveCurs
 import com.shatteredpixel.shatteredpixeldungeon.items.spells.Alchemize;
 import com.shatteredpixel.shatteredpixeldungeon.items.stones.StoneOfAugmentation;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MeleeWeapon;
+import com.shatteredpixel.shatteredpixeldungeon.items.weapon.missiles.MissileWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.missiles.darts.TippedDart;
 import com.shatteredpixel.shatteredpixeldungeon.levels.CityBossLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
@@ -68,7 +79,7 @@ public class ShopRoom extends SpecialRoom {
 	}
 
 	public int spacesNeeded(){
-		if (!itemsGenerated) generateItems(null);
+		if (!itemsGenerated) generateItems(Dungeon.level);
 
 		//sandbags spawn based on current level of an hourglass the player may be holding
 		// so, to avoid rare cases of min sizes differing based on that, we ignore all sandbags
@@ -216,31 +227,32 @@ public class ShopRoom extends SpecialRoom {
 		List<Item> itemsToSpawn = spawnItemsInRoom;
 
 		MeleeWeapon w;
-		switch (Dungeon.level.levelScheme.getRegion()) {
+		MissileWeapon m;
+		switch (level.levelScheme.getRegion()) {
 			case LevelScheme.REGION_PRISON: default:
-			w = (MeleeWeapon) Generator.random(Generator.wepTiers[1]);
-			itemsToSpawn.add( Generator.random(Generator.misTiers[1]).quantity(2).identify(false) );
-			itemsToSpawn.add( new LeatherArmor().identify(false) );
-			break;
-			
-		case LevelScheme.REGION_CAVES:
-			w = (MeleeWeapon) Generator.random(Generator.wepTiers[2]);
-			itemsToSpawn.add( Generator.random(Generator.misTiers[2]).quantity(2).identify(false) );
-			itemsToSpawn.add( new MailArmor().identify(false) );
-			break;
-			
-		case LevelScheme.REGION_CITY:
-
-			if(!(Dungeon.level instanceof CityBossLevel)){
-				w = (MeleeWeapon) Generator.random(Generator.wepTiers[3]);
-				itemsToSpawn.add( Generator.random(Generator.misTiers[3]).quantity(2).identify(false) );
-				itemsToSpawn.add( new ScaleArmor().identify(false) );
+				w = (MeleeWeapon) Generator.random(Generator.wepTiers[1]);
+				m = (MissileWeapon) Generator.random(Generator.misTiers[1]);
+				itemsToSpawn.add( new LeatherArmor().identify(false) );
 				break;
-			}
+			
+			case LevelScheme.REGION_CAVES:
+				w = (MeleeWeapon) Generator.random(Generator.wepTiers[2]);
+				m = (MissileWeapon) Generator.random(Generator.misTiers[2]);
+				itemsToSpawn.add( new MailArmor().identify(false) );
+				break;
+			
+			case LevelScheme.REGION_CITY:
 
-		case LevelScheme.REGION_HALLS:
+				if(!(level instanceof CityBossLevel)){
+					w = (MeleeWeapon) Generator.random(Generator.wepTiers[3]);
+					m = (MissileWeapon) Generator.random(Generator.misTiers[3]);
+					itemsToSpawn.add( new ScaleArmor().identify(false) );
+					break;
+				}
+
+			case LevelScheme.REGION_HALLS:
 				w = (MeleeWeapon) Generator.random(Generator.wepTiers[4]);
-				itemsToSpawn.add( Generator.random(Generator.misTiers[4]).quantity(2).identify(false) );
+				m = (MissileWeapon) Generator.random(Generator.misTiers[4]);
 				itemsToSpawn.add( new PlateArmor().identify(false) );
 				itemsToSpawn.add( new Torch() );
 				itemsToSpawn.add( new Torch() );
@@ -252,6 +264,12 @@ public class ShopRoom extends SpecialRoom {
 		w.level(0);
 		w.identify(false);
 		itemsToSpawn.add(w);
+
+		m.enchant(null);
+		m.cursed = false;
+		m.level(0);
+		m.identify(false);
+		itemsToSpawn.add(m);
 		
 		itemsToSpawn.add( TippedDart.randomTipped(2) );
 
@@ -302,13 +320,13 @@ public class ShopRoom extends SpecialRoom {
 			int bags = 0;
 			//creates the given float percent of the remaining bags to be dropped.
 			//this way players who get the hourglass late can still max it, usually.
-			switch (Dungeon.level.levelScheme.getRegion()) {
+			switch (level.levelScheme.getRegion()) {
 				case LevelScheme.REGION_PRISON:
 					bags = (int)Math.ceil(( 5-hourglass.sandBags) * 0.20f ); break;
 				case LevelScheme.REGION_CAVES:
 					bags = (int)Math.ceil(( 5-hourglass.sandBags) * 0.25f ); break;
 				case LevelScheme.REGION_CITY:
-					if(!(Dungeon.level instanceof  CityBossLevel))bags = (int)Math.ceil(( 5-hourglass.sandBags) * 0.50f ); break;
+					if(!(level instanceof  CityBossLevel))bags = (int)Math.ceil(( 5-hourglass.sandBags) * 0.50f ); break;
 				case LevelScheme.REGION_HALLS:
 					bags = (int)Math.ceil(( 5-hourglass.sandBags) * 0.80f ); break;
 			}

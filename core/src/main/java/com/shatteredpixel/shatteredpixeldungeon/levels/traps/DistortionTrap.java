@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,12 @@ package com.shatteredpixel.shatteredpixeldungeon.levels.traps;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
-import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.*;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mimic;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.MobSpawner;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Piranha;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Statue;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Wraith;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.RatKing;
 import com.shatteredpixel.shatteredpixeldungeon.editor.Barrier;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfTeleportation;
@@ -35,7 +39,6 @@ import com.watabou.utils.Random;
 import com.watabou.utils.Reflection;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class DistortionTrap extends Trap{
 
@@ -45,13 +48,6 @@ public class DistortionTrap extends Trap{
 		color = TEAL;
 		shape = LARGE_DOT;
 	}
-
-	private static final ArrayList<Class<?extends Mob>> RARE = new ArrayList<>(Arrays.asList(
-			Albino.class, CausticSlime.class,
-			Bandit.class,
-			ArmoredBrute.class, DM201.class,
-			Elemental.ChaosElemental.class, Senior.class,
-			Acidic.class));
 
 	@Override
 	public void activate() {
@@ -103,7 +99,7 @@ public class DistortionTrap extends Trap{
 					mob = MobSpawner.getMobRotation(floor).get(0);
 					break;
 				case 2:
-					switch (2){
+					switch (Random.Int(4)){
 						case 0: default:
 							Wraith.spawnAt(point);
 							continue; //wraiths spawn themselves, no need to do more
@@ -122,7 +118,7 @@ public class DistortionTrap extends Trap{
 					}
 					break;
 				case 4:
-					mob = Reflection.newInstance(Random.element(RARE));
+					mob = Reflection.newInstance(Random.element(MobSpawner.RARE_ALTS.values()));
 					break;
 			}
 
@@ -130,8 +126,10 @@ public class DistortionTrap extends Trap{
 				continue;
 			}
 
-			mob.maxLvl = Hero.MAX_LEVEL-1;
-			mob.state = mob.WANDERING;
+			mob.maxLvl = Dungeon.hero.maxLevel -1;
+			if (mob.state != mob.PASSIVE) {
+				mob.state = mob.WANDERING;
+			}
 			mob.pos = point;
 			GameScene.add(mob, DELAY);
 			mobs.add(mob);

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,14 +28,14 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Blob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
+import com.shatteredpixel.shatteredpixeldungeon.levels.VaultLevel;
 import com.watabou.noosa.Game;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.SparseArray;
 
 import java.util.HashSet;
 
-public abstract class Actor extends GameObject implements Copyable<Actor> {
+public abstract class Actor extends GameObject {
 	
 	public static final float TICK	= 1f;
 
@@ -45,7 +45,7 @@ public abstract class Actor extends GameObject implements Copyable<Actor> {
 
 	//default priority values for general actor categories
 	//note that some specific actors pick more specific values
-	//e.g. a buff acting after all normal buffs might have priority BUFF_PRIO + 1
+	//e.g. a buff acting before all normal buffs might have priority BUFF_PRIO + 1
 	protected static final int VFX_PRIO    = 100;   //visual effects take priority
 	protected static final int HERO_PRIO   = 0;     //positive is before hero, negative after
 	protected static final int BLOB_PRIO   = -10;   //blobs act after hero, before mobs
@@ -158,7 +158,9 @@ public abstract class Actor extends GameObject implements Copyable<Actor> {
 		if (template == null) return;
 		if (getClass() != template.getClass()) return;
 		Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
 		bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
 		int id = this.id;
 		bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
@@ -219,7 +221,7 @@ public abstract class Actor extends GameObject implements Copyable<Actor> {
 			a.time -= min;
 		}
 
-		if (Dungeon.hero != null && all.contains( Dungeon.hero )) {
+		if (Dungeon.hero != null && all.contains( Dungeon.hero ) && !(Dungeon.level instanceof VaultLevel)) {
 			Statistics.duration += min;
 		}
 		now -= min;
@@ -286,15 +288,17 @@ public abstract class Actor extends GameObject implements Copyable<Actor> {
 			if (!interrupted && !Game.switchingScene()) {
 				float earliest = Float.MAX_VALUE;
 
-				for (Actor actor : all) {
-					
-					//some actors will always go before others if time is equal.
-					if (actor.time < earliest ||
-							actor.time == earliest && (current == null || actor.actPriority > current.actPriority)) {
-						earliest = actor.time;
-						current = actor;
+				synchronized (Actor.class) {
+					for (Actor actor : all) {
+
+						//some actors will always go before others if time is equal.
+						if (actor.time < earliest ||
+								actor.time == earliest && (current == null || actor.actPriority > current.actPriority)) {
+							earliest = actor.time;
+							current = actor;
+						}
+
 					}
-					
 				}
 			}
 

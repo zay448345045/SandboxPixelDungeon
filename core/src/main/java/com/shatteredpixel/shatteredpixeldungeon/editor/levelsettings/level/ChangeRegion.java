@@ -30,8 +30,6 @@ import com.watabou.noosa.Game;
 import com.watabou.noosa.Image;
 import com.watabou.noosa.ui.Component;
 
-import java.util.Map;
-
 @NotAllowedInLua
 public class ChangeRegion extends Component {
 
@@ -175,19 +173,16 @@ public class ChangeRegion extends Component {
                     @Override
                     protected boolean acceptFile(FileHandle file, String path) {
                         SmartTexture tx = TextureCache.get(TextureCache.EXTERNAL_ASSET_PREFIX + CustomDungeonSaves.getExternalFilePath(path));
-                        if (tx != null && tx.width == 256 && tx.height == 256) {
+                        //height 256 is only backwards compatibility without the new region decorations (Shattered v3.1)
+                        if (tx != null && tx.width == 256 && (tx.height == 512 || tx.height == 256)) {
                             return true;
                         }
                         return false;
                     }
                     
                     @Override
-                    protected void onSelect(Map.Entry<String, FileHandle> path) {
-                        if (path == null) {
-                            newValues[4] = null;
-                        } else {
-                            newValues[4] = path.getKey();
-                        }
+                    protected void onSelect(String path, FileHandle file) {
+						newValues[4] = path;
                         customRegion.text(customRegionLabel + "\n" + (newValues[4] == null ? Messages.get(ChangeRegion.class, "no_custom_spritesheet") : newValues[4]));
                     }
                 });
@@ -220,12 +215,8 @@ public class ChangeRegion extends Component {
                     }
                     
                     @Override
-                    protected void onSelect(Map.Entry<String, FileHandle> path) {
-                        if (path == null) {
-                            newValues[4] = null;
-                        } else {
-                            newValues[5] = path.getKey();
-                        }
+                    protected void onSelect(String path, FileHandle file) {
+						newValues[5] = path;
                         customRegion.text(customWaterLabel + "\n" + (newValues[5] == null ? Messages.get(ChangeRegion.class, "no_custom_spritesheet") : newValues[5]));
                     }
                 });

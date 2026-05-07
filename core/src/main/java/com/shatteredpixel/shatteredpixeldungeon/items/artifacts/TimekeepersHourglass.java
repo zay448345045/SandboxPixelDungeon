@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -266,7 +266,8 @@ public class TimekeepersHourglass extends Artifact {
 			if (charge < chargeCap
 					&& !cursed
 					&& target.buff(MagicImmune.class) == null
-					&& Regeneration.regenOn()) {
+					&& Regeneration.regenOn()
+					& rechargeRule.normalRechargeable()) {
 				//90 turns to charge at full, 60 turns to charge at 0/10
 				float chargeGain = 1 / (90f - (chargeCap - charge)*3f);
 				chargeGain *= RingOfEnergy.artifactChargeMultiplier(target);
@@ -488,10 +489,12 @@ public class TimekeepersHourglass extends Artifact {
 		public void storeInBundle(Bundle bundle) {
 			super.storeInBundle(bundle);
 
-			int[] values = new int[presses.size()];
-			for (int i = 0; i < values.length; i ++)
-				values[i] = presses.get(i);
-			bundle.put( PRESSES , values );
+			if (!presses.isEmpty()) {
+				int[] values = new int[presses.size()];
+				for (int i = 0; i < values.length; i++)
+					values[i] = presses.get(i);
+				bundle.put(PRESSES, values);
+			}
 
 			bundle.put( TURNSTOCOST , turnsToCost);
 		}
@@ -500,9 +503,11 @@ public class TimekeepersHourglass extends Artifact {
 		public void restoreFromBundle(Bundle bundle) {
 			super.restoreFromBundle(bundle);
 
-			int[] values = bundle.getIntArray( PRESSES );
-			for (int value : values)
-				presses.add(value);
+			if (bundle.contains(PRESSES)) {
+				int[] values = bundle.getIntArray( PRESSES );
+				for (int value : values)
+					presses.add(value);
+			}
 
 			turnsToCost = bundle.getFloat( TURNSTOCOST );
 		}
@@ -529,7 +534,7 @@ public class TimekeepersHourglass extends Artifact {
 				else
 					GLog.i( Messages.get(this, "levelup") );
 				GameScene.pickUp(this, pos);
-				hero.spendAndNext(TIME_TO_PICK_UP);
+				hero.spendAndNext(pickupDelay());
 				return true;
 			} else {
 				GLog.w( Messages.get(this, "no_hourglass") );

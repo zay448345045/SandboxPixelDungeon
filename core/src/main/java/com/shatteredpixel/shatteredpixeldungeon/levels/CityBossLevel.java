@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -150,6 +150,9 @@ public class CityBossLevel extends Level {
 
 		Painter.fill(this, entry.left+3, entry.top+3, 1, 5, Terrain.BOOKSHELF);
 		Painter.fill(this, entry.right-4, entry.top+3, 1, 5, Terrain.BOOKSHELF);
+
+		Painter.set(this, entry.left+5, entry.top+1, Terrain.FLAMING_PEDESTAL);
+		Painter.set(this, entry.left+7, entry.top+1, Terrain.FLAMING_PEDESTAL);
 
 		Point c = entry.center();
 

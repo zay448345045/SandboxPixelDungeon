@@ -4,10 +4,10 @@
  *  * Copyright (C) 2012-2015 Oleg Dolya
  *  *
  *  * Shattered Pixel Dungeon
- *  * Copyright (C) 2014-2024 Evan Debenham
+ *  * Copyright (C) 2014-2025 Evan Debenham
  *  *
  *  * Sandbox Pixel Dungeon
- *  * Copyright (C) 2023-2024 AlphaDraxonis
+ *  * Copyright (C) 2023-2025 AlphaDraxonis
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,12 @@ import com.shatteredpixel.shatteredpixeldungeon.Badges;
 import com.shatteredpixel.shatteredpixeldungeon.Challenges;
 import com.shatteredpixel.shatteredpixeldungeon.Chrome;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
+import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Blob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.AscensionChallenge;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.ChampionEnemy;
@@ -56,14 +58,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.Checkpoint;
 import com.shatteredpixel.shatteredpixeldungeon.editor.WndCreator;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditArrowCellComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditBarrierComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditBuffComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditCheckpointComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditHeapComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditItemComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditMobComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditPlantComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditRoomComp;
-import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditTrapComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Buffs;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.CursedWandEffects;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Enchantments;
@@ -72,6 +67,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Items;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.MobSprites;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Mobs;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Plants;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Tiles;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Traps;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.Zone;
@@ -90,6 +86,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.KindOfWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.items.KindofMisc;
 import com.shatteredpixel.shatteredpixeldungeon.items.KingsCrown;
+import com.shatteredpixel.shatteredpixeldungeon.items.RechargeRule;
 import com.shatteredpixel.shatteredpixeldungeon.items.Stylus;
 import com.shatteredpixel.shatteredpixeldungeon.items.Torch;
 import com.shatteredpixel.shatteredpixeldungeon.items.Waterskin;
@@ -158,7 +155,6 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.painters.RegularPainter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.SewerPainter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.StandardRoom;
-import com.shatteredpixel.shatteredpixeldungeon.levels.traps.Trap;
 import com.shatteredpixel.shatteredpixeldungeon.mechanics.Ballistica;
 import com.shatteredpixel.shatteredpixeldungeon.mechanics.ConeAOE;
 import com.shatteredpixel.shatteredpixeldungeon.mechanics.ShadowCaster;
@@ -200,7 +196,6 @@ import org.luaj.vm2.lib.ThreeArgFunction;
 import org.luaj.vm2.lib.TwoArgFunction;
 import org.luaj.vm2.lib.VarArgFunction;
 import org.luaj.vm2.lib.ZeroArgFunction;
-import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 import org.luaj.vm2.lib.jse.CoerceLuaToJava;
 import org.luaj.vm2.lib.jse.JsePlatform;
 
@@ -277,12 +272,12 @@ public class LuaGlobals extends Globals {
 						
 						Object[] params = LuaRestrictionProxy.unwrapRestrictionProxiesAsJavaArray(varargs.subargs(2));
 						
-						Constructor constructor = findBestMatchingExecutableC(params, c.getConstructors());
+						Constructor constructor = Reflection.findBestMatchingExecutableC(params, c.getConstructors());
 						if (constructor == null) {
 							throw new LuaError("No matching constructor found: " + arg.checkstring());
 						} else {
 							try {
-								javaResult = constructor.newInstance(makeParamsFitVarArgsMethods(params, constructor.getParameterTypes(), constructor.isVarArgs()));
+								javaResult = constructor.newInstance(Reflection.makeParamsFitVarArgsMethods(params, constructor.getParameterTypes(), constructor.isVarArgs()));
 							} catch (Exception e) {
 								throwError(e);
 								return null;
@@ -313,22 +308,40 @@ public class LuaGlobals extends Globals {
 			@Override
 			public Varargs invoke(Varargs varargs) {
 				LuaValue arg = varargs.arg1();
+				Object[] params = LuaRestrictionProxy.unwrapRestrictionProxiesAsJavaArray(varargs.subargs(2));
+				Object javaResult = null;
 				if (arg.isstring()) {
 					String s = arg.tojstring();
 					for (CustomObject obj : CustomObjectManager.allUserContents.values()) {
-						if (obj.getName().equals(s) && obj instanceof LuaCustomObject)
-							return CoerceJavaToLua.coerce(((LuaCustomObject) obj).newInstance());
+						if (obj.getName().equals(s) && obj instanceof LuaCustomObject) {
+							javaResult = ((LuaCustomObject) obj).newInstance(params);
+							break;
+						}
 					}
-					throw new LuaError("No custom object with name \"" + s + "\" was found!");
+					if (javaResult == null) throw new LuaError("No custom object with name \"" + s + "\" was found!");
 				}
 				else if (arg.isint()) {
 					CustomObject original = CustomObjectManager.allUserContents.get(arg.checkint());
-					if (original instanceof LuaCustomObject)
-						return CoerceJavaToLua.coerce(((LuaCustomObject) original).newInstance());
-					throw new LuaError("No custom object with id \"" + arg.checkint() + "\" was found!");
+					if (original instanceof LuaCustomObject) {
+						javaResult = ((LuaCustomObject) original).newInstance(params);
+					}
+					if (javaResult == null) throw new LuaError("No custom object with id \"" + arg.checkint() + "\" was found!");
 
 				}
-				throw new LuaError("Illegal arguments: use newCus(String name) or newCus(int id)");
+				
+				if (javaResult != null) {
+					
+					if (!LuaRestrictionProxy.isRestricted(javaResult)) {
+						return LuaRestrictionProxy.wrapObject(javaResult);
+					}
+					else {
+						if (javaResult instanceof Gizmo) ((Gizmo) javaResult).destroy();
+						throw new IllegalArgumentException(
+								"Instancing class " + arg.checkjstring() + " is not permitted for security reasons!");
+					}
+				}
+				
+				throw new LuaError("Illegal arguments: use newCus(String name, Object... params) or newCus(int id, Object... params)");
 			}
 		});
 
@@ -611,7 +624,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						WndCreator.showMessageWindow(varargs.arg(1), varargs.arg(2), varargs.arg(3), LuaValue.NIL, onHide);
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -627,7 +640,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						WndCreator.showStoryWindow(varargs.arg(1), varargs.arg(2), varargs.arg(3), LuaValue.NIL, onHide);
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -643,7 +656,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						WndCreator.showItemRewardWindow(varargs.arg(1), varargs.arg(2), varargs.arg(3), varargs.arg(4), varargs.arg(5), varargs.arg(6), onSelectReward);
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -658,7 +671,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						WndCreator.showOptionsWindow(varargs.arg(1), varargs.arg(2), varargs.arg(3), varargs.arg(4), varargs.arg(5), onSelect);
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -673,7 +686,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						WndCreator.showCondensedOptionsWindow(varargs.arg(1), varargs.arg(2), varargs.arg(3), varargs.arg(4), varargs.arg(5), onSelect);
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -686,7 +699,7 @@ public class LuaGlobals extends Globals {
 				Game.runOnRenderThread(() -> {
 					try {
 						DungeonScene.show((Window) LuaRestrictionProxy.coerceLuaToJava(window, Window.class));
-					} catch (LuaError e) {
+					} catch (Exception e) {
 						DungeonScene.show(new WndError(e));
 					}
 				});
@@ -816,29 +829,58 @@ public class LuaGlobals extends Globals {
 				throw new LuaError("Illegal arguments: use placeMob(Mob mob, int pos)");
 			}
 		});
+		
+		set("seedBlob", new ThreeArgFunction() {//TODO add to documentation!
+			@Override
+			public LuaValue call(LuaValue blobClassName, LuaValue pos, LuaValue amount) {
+				//GameScene.add( Blob.seed( cell+i, 120, Blizzard.class ) );
+				if (blobClassName.isstring() && pos.isint() && amount.isint()) {
+					Class cl = (Class) LuaRestrictionProxy.coerceLuaToJava(LuaGlobals.this.get("class").call(blobClassName));
+					Blob blob = Blob.seed(pos.checkint(), amount.checkint(), cl);
+					GameScene.add(blob);
+					return LuaRestrictionProxy.wrapObject(blob);
+				}
+				throw new LuaError("Illegal arguments: use seedBlob(String blobClassName, int pos, int amount)");
+			}
+		});
 
 		set("affectBuff", new ThreeArgFunction() {
 			@Override
 			public LuaValue call(LuaValue target, LuaValue buff, LuaValue duration) {
-				if (target.isuserdata() && buff.isuserdata()) {
+				if (target.isuserdata() && (buff.isuserdata() || buff.isstring())) {
 					Char ch = (Char) LuaRestrictionProxy.coerceLuaToJava(target, Char.class);
 					if (ch != null) {
-						Object b = LuaRestrictionProxy.coerceLuaToJava(buff);
-						Class<?> buffClass = b instanceof Class ? (Class<?>) b : b.getClass();
-
-						if (duration.isnil() || !duration.isnumber() || !FlavourBuff.class.isAssignableFrom(buffClass)) {
-
-							if (Buff.class.isAssignableFrom(buffClass)) {
-								return LuaRestrictionProxy.wrapObject(Buff.affect(ch, ((Class<? extends Buff>) buffClass)));
-							}
-
-						} else {
-							return LuaRestrictionProxy.wrapObject(Buff.affect(ch, ((Class<? extends FlavourBuff>) buffClass), duration.tofloat()));
+						if (buff.isstring()) {
+							buff = LuaGlobals.this.get("class").call(buff);
 						}
+						Object b = LuaRestrictionProxy.coerceLuaToJava(buff);
+						
+						if (b instanceof Class) {
+							Class<?> buffClass = (Class<?>) b;
+							if (duration.isnil() || !duration.isnumber() || !FlavourBuff.class.isAssignableFrom(buffClass)) {
+								if (Buff.class.isAssignableFrom(buffClass)) {
+									return LuaRestrictionProxy.wrapObject(Buff.affect(ch, ((Class<? extends Buff>) buffClass)));
+								}
+							} else if (FlavourBuff.class.isAssignableFrom(buffClass)){
+								return LuaRestrictionProxy.wrapObject(Buff.affect(ch, ((Class<? extends FlavourBuff>) buffClass), duration.tofloat()));
+							}
+							
+						} else if (b instanceof Buff) {
+							Buff javaBuff = (Buff) b;
+							if (duration.isnil() || !duration.isnumber() || !(javaBuff instanceof FlavourBuff)) {
+								return LuaRestrictionProxy.wrapObject(Buff.affect(ch, javaBuff));
+							} else {
+								return LuaRestrictionProxy.wrapObject(Buff.affect(ch, ((FlavourBuff) javaBuff), duration.tofloat()));
+							}
+							
+						}
+						
+						//this contains extra info that the buff is wrong
+						throw new LuaError("Illegal arguments: use affectBuff(Char target, Buff buff) or affectBuff(Char target, Buff buff, float duration) or affectBuff(Char target, Class<? extends Buff> buff) or affectBuff(Char target, Class<? extends Buff> buff, float duration) or affectBuff(Char target, String buffClassName) or affectBuff(Char target, String buffClassName, float duration)");
 
 					}
 				}
-				throw new LuaError("Illegal arguments: use affectBuff(Char target, Buff buff) or affectBuff(Char target, Class<? extends Buff> buff) or affectBuff(Char target, Buff buff, float duration) or affectBuff(Char target, Class<? extends Buff> buff, float duration)");
+				throw new LuaError("Illegal arguments: use affectBuff(Char target, Buff buff) or affectBuff(Char target, Buff buff, float duration) or affectBuff(Char target, Class<? extends Buff> buff) or affectBuff(Char target, Class<? extends Buff> buff, float duration) or affectBuff(Char target, String buffClassName) or affectBuff(Char target, String buffClassName, float duration)");
 			}
 		});
 
@@ -879,7 +921,7 @@ public class LuaGlobals extends Globals {
 				Object obj = itemKey.checkuserdata();
 				if (!(obj instanceof Key)) throw new LuaError("Illegal arguments: use collectKey(Key key) or collectKey(Key key, int fromCell)");
 				int cell = pos.isint() ? pos.checkint() : Dungeon.hero.pos;
-				((Key) obj).instantPickupKey(cell);
+				((Key) obj).instantPickupKey(Dungeon.hero, cell);
 				return LuaValue.TRUE;
 			}
 		});
@@ -908,6 +950,12 @@ public class LuaGlobals extends Globals {
 			public LuaValue call() {
 				SandboxPixelDungeon.seamlessResetScene();
 				return LuaValue.NIL;
+			}
+		});
+		set("scene", new ZeroArgFunction() {
+			@Override
+			public LuaValue call() {
+				return LuaRestrictionProxy.wrapObject( Game.scene() );
 			}
 		});
 
@@ -960,16 +1008,10 @@ public class LuaGlobals extends Globals {
 					Object objB = b.touserdata();
 					if (objA.getClass() != objB.getClass()) return LuaValue.FALSE;
 
-					if (objA instanceof Item)    return LuaValue.valueOf(EditItemComp.areEqual(((Item) objA), (Item) objB));
-					if (objA instanceof Mob)     return LuaValue.valueOf(EditMobComp.areEqual(((Mob) objA), (Mob) objB));
-					if (objA instanceof Trap)    return LuaValue.valueOf(EditTrapComp.areEqual(((Trap) objA), (Trap) objB));
-					if (objA instanceof Plant)   return LuaValue.valueOf(EditPlantComp.areEqual(((Plant) objA), (Plant) objB));
-					if (objA instanceof Heap)    return LuaValue.valueOf(EditHeapComp.areEqual(((Heap) objA), (Heap) objB));
-					if (objA instanceof Buff)    return LuaValue.valueOf(EditBuffComp.areEqual(((Buff) objA), (Buff) objB));
-					if (objA instanceof Barrier) return LuaValue.valueOf(EditBarrierComp.areEqual(((Barrier) objA), (Barrier) objB));
-					if (objA instanceof ArrowCell) return LuaValue.valueOf(EditArrowCellComp.areEqual(((ArrowCell) objA), (ArrowCell) objB));
-					if (objA instanceof Room)    return LuaValue.valueOf(EditRoomComp.areEqual(((Room) objA), (Room) objB));
-					if (objA instanceof Checkpoint)    return LuaValue.valueOf(EditCheckpointComp.areEqual(((Checkpoint) objA), (Checkpoint) objB));
+					if (objA instanceof GameObject)		return LuaValue.valueOf(GameObject.areEqual(((GameObject) objA), (GameObject) objB));
+					if (objA instanceof Barrier)		return LuaValue.valueOf(EditBarrierComp.areEqual(((Barrier) objA), (Barrier) objB));
+					if (objA instanceof ArrowCell)		return LuaValue.valueOf(EditArrowCellComp.areEqual(((ArrowCell) objA), (ArrowCell) objB));
+					if (objA instanceof Checkpoint)		return LuaValue.valueOf(EditCheckpointComp.areEqual(((Checkpoint) objA), (Checkpoint) objB));
 
 					return LuaValue.FALSE;
 				}
@@ -1027,7 +1069,22 @@ public class LuaGlobals extends Globals {
 				return LuaValue.valueOf(CustomDungeon.isEditing());
 			}
 		});
-
+		
+		
+		LuaTable tiles = new LuaTable();
+		tiles.set("getCustomTile", new OneArgFunction() {
+			@Override
+			public LuaValue call(LuaValue identifier) {
+				if (identifier.isstring()) {
+					return LuaRestrictionProxy.wrapObject(Tiles.getCustomTile(identifier.tojstring()));
+				}
+				if (identifier.isint()) {
+					return LuaRestrictionProxy.wrapObject(Tiles.getCustomTile(identifier.toint()));
+				}
+				throw new LuaError("Illegal arguments: use getCustomTile(fileName) or getCustomTile(identifier)");
+			}
+		});
+		set("Tiles", tiles);
 		
 
 
@@ -1106,7 +1163,7 @@ public class LuaGlobals extends Globals {
 		addEnum(Heap.Type.class);
 		addEnum(Armor.Augment.class);
 		addEnum(Weapon.Augment.class);
-		addEnum(Wand.RechargeRule.class);
+		addEnum(RechargeRule.class);
 		addEnum(LevelTransition.Type.class);
 		addEnum(StandardRoom.SizeCategory.class);
 		addEnum(CharSprite.State.class);
@@ -1607,137 +1664,7 @@ public class LuaGlobals extends Globals {
 		return result;
 	}
 	
-	public static Method findBestMatchingExecutableM(Object[] params, Iterable<? extends Method> executables) {
-		oneExe:
-		for (Method exe : executables) {
-			Class<?>[] paramTypes = exe.getParameterTypes();
-			
-			boolean matchesFirst;
-			if (paramTypes.length == params.length) {
-				
-				matchesFirst = true;
-				int i = 0;
-				for (; i < paramTypes.length - 1; i++) {
-					if (!isArgumentApplicable(paramTypes[i], params[i].getClass())) {
-						matchesFirst = false;
-						break;
-					}
-				}
-				if (paramTypes.length == 0 || isArgumentApplicable(paramTypes[i], params[i].getClass())) return exe;
-			} else {
-				matchesFirst = false;
-			}
-			if (exe.isVarArgs()) {
-				if (!matchesFirst) {
-					for (int i = 0; i < paramTypes.length - 1; i++) {
-						if (!isArgumentApplicable(paramTypes[i], params[i].getClass())) {
-							continue oneExe;
-						}
-					}
-				}
-				Class<?> lastParamType = paramTypes[paramTypes.length-1].getComponentType();
-				for (int i = paramTypes.length-1; i < params.length - 1; i++) {
-					if (!lastParamType.isAssignableFrom(params[i].getClass())) {
-						continue oneExe;
-					}
-				}
-				return exe;
-			}
-			
-		}
-		return null;
-	}
 	
-	public static Constructor findBestMatchingExecutableC(Object[] params, Constructor[] executables) {
-		oneExe:
-		for (Constructor exe : executables) {
-			Class<?>[] paramTypes = exe.getParameterTypes();
-			
-			boolean matchesFirst;
-			if (paramTypes.length == params.length) {
-				
-				matchesFirst = true;
-				int i = 0;
-				for (; i < paramTypes.length - 1; i++) {
-					if (!isArgumentApplicable(paramTypes[i], params[i].getClass())) {
-						matchesFirst = false;
-						break;
-					}
-				}
-				if (paramTypes.length == 0 || isArgumentApplicable(paramTypes[i], params[i].getClass())) return exe;
-			} else {
-				matchesFirst = false;
-			}
-			if (exe.isVarArgs()) {
-				if (!matchesFirst) {
-					for (int i = 0; i < paramTypes.length - 1; i++) {
-						if (!isArgumentApplicable(paramTypes[i], params[i].getClass())) {
-							continue oneExe;
-						}
-					}
-				}
-				Class<?> lastParamType = paramTypes[paramTypes.length-1].getComponentType();
-				for (int i = paramTypes.length-1; i < params.length - 1; i++) {
-					if (!lastParamType.isAssignableFrom(params[i].getClass())) {
-						continue oneExe;
-					}
-				}
-				return exe;
-			}
-			
-		}
-		return null;
-	}
-	
-	public static Object[] makeParamsFitVarArgsMethods(Object[] params, Class<?>[] paramTypes, boolean isVarArgs) {
-		if (!isVarArgs) {
-			return params;
-		}
-		Object[] result = new Object[paramTypes.length];
-		int i = 0;
-		for (; i < result.length-1; i++) {
-			result[i] = params[i];
-		}
-		int numVarArgs = params.length - result.length;
-		Class<?> componentType = paramTypes[i].getComponentType();
-		result[i] = Array.newInstance(componentType, numVarArgs);
-		for (int j = 0; j < numVarArgs; j++) {
-			Array.set(result[i], j, params[i + j]);
-		}
-		return result;
-	}
-	
-	private static boolean isArgumentApplicable(Class<?> methodParam, Class<?> argumentClass) {
-		if (methodParam.isAssignableFrom(argumentClass)) {
-			return true;
-		}
-		if (methodParam.isPrimitive()) {
-			switch (methodParam.getName()) {
-				case "int": return argumentClass == Integer.class || argumentClass == int.class;
-				case "boolean": return argumentClass == Boolean.class || argumentClass == boolean.class;
-				case "long": return argumentClass == Long.class || argumentClass == long.class;
-				case "char": return argumentClass == Character.class || argumentClass == char.class;
-				case "byte": return argumentClass == Byte.class || argumentClass == byte.class;
-				case "short": return argumentClass == Short.class || argumentClass == short.class;
-				case "float": return argumentClass == Float.class || argumentClass == float.class;
-				case "double": return argumentClass == Double.class || argumentClass == double.class;
-			}
-		}
-		if (argumentClass.isPrimitive()) {
-			switch (argumentClass.getName()) {
-				case "int": return methodParam == Integer.class || methodParam == int.class;
-				case "boolean": return methodParam == Boolean.class || methodParam == boolean.class;
-				case "long": return methodParam == Long.class || methodParam == long.class;
-				case "char": return methodParam == Character.class || methodParam == char.class;
-				case "byte": return methodParam == Byte.class || methodParam == byte.class;
-				case "short": return methodParam == Short.class || methodParam == short.class;
-				case "float": return methodParam == Float.class || methodParam == float.class;
-				case "double": return methodParam == Double.class || methodParam == double.class;
-			}
-		}
-		
-		return false;
-	}
 	
 //	private static LuaTable arrayToTable(Object array) {
 //		LuaTable result = new LuaTable();

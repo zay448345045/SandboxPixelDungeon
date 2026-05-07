@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,6 +49,7 @@ public class GamesInProgress {
     public static int curSlot = NO_SLOT;
 
     public static HeroClass selectedClass;
+	public static boolean randomizedClass = false;
 
 	private static final String FOLDER = "games_in_progress/";
     private static final String GAME_FOLDER = FOLDER + "game%d";
@@ -154,8 +155,7 @@ public class GamesInProgress {
 				
 				Bundle bundle = FileUtils.bundleFromFile(gameFile(gameFolder));
 
-				//saves from before v1.4.3 are not supported
-				if (bundle.getInt( "version" ) < SandboxPixelDungeon.v1_4_3) {
+				if (bundle.getInt( "version" ) < SandboxPixelDungeon.v2_5_4) {
 					info = null;
 				} else {
 

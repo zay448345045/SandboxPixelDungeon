@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 package com.shatteredpixel.shatteredpixeldungeon.levels.rooms;
 
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
@@ -40,7 +39,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public abstract class Room extends RoomRect implements Graph.Node, Bundlable, Copyable<Room> {
+public abstract class Room extends RoomRect implements Graph.Node, Bundlable {
 	
 	public ArrayList<Room> neigbours = new ArrayList<>();
 	public LinkedHashMap<Room, Door> connected = new LinkedHashMap<>();
@@ -226,6 +225,11 @@ public abstract class Room extends RoomRect implements Graph.Node, Bundlable, Co
 	
 	//considers both direction and point limits
 	public boolean canConnect( Room r ){
+		if (isExit() && r.isEntrance() || isEntrance() && r.isExit()){
+			//entrance and exit rooms cannot directly connect
+			return false;
+		}
+
 		RoomRect i = intersect( r );
 		
 		boolean foundPoint = false;
@@ -273,10 +277,6 @@ public abstract class Room extends RoomRect implements Graph.Node, Bundlable, Co
 	}
 	
 	public boolean connect( Room room ) {
-		if (isExit() && room.isEntrance() || isEntrance() && room.isExit()){
-			//entrance and exit rooms cannot directly connect
-			return false;
-		}
 
 		if ((neigbours.contains(room) || addNeigbour(room))
 				&& !connected.containsKey( room ) && canConnect(room)) {

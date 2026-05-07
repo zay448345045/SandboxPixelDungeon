@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,14 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.entrance;
 
+import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.WaterBridgeRoom;
 import com.watabou.utils.PathFinder;
+import com.watabou.utils.Point;
 
 public class WaterBridgeEntranceRoom extends WaterBridgeRoom implements EntranceRoomInterface {
 
@@ -42,6 +45,24 @@ public class WaterBridgeEntranceRoom extends WaterBridgeRoom implements Entrance
 	@Override
 	public boolean isEntrance() {
 		return true;
+	}
+
+	@Override
+	public boolean canMerge(Level l, Room other, Point p, int mergeTerrain) {
+		if (Dungeon.getSimulatedDepth() <= 2) {
+			return false;
+		} else {
+			return super.canMerge(l, other, p, mergeTerrain);
+		}
+	}
+
+	@Override
+	public boolean canPlaceTrap(Point p) {
+		if (Dungeon.getSimulatedDepth() == 1) {
+			return false;
+		} else {
+			return super.canPlaceTrap(p);
+		}
 	}
 
 	@Override

@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ package com.shatteredpixel.shatteredpixeldungeon.services.server;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Net;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.net.HttpStatus;
 import com.badlogic.gdx.utils.Base64Coder;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
@@ -34,12 +35,16 @@ import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.utils.Bundle;
+import com.watabou.utils.DeviceCompat;
 import com.watabou.utils.FileUtils;
 
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.shatteredpixel.shatteredpixeldungeon.services.server.ServerConstants.ACTION_DOWNLOAD_FILE;
+import static com.shatteredpixel.shatteredpixeldungeon.services.server.ServerConstants.ACTION_START_DOWNLOAD;
 
 @NotAllowedInLua
 public class DownloadDungeonAction {
@@ -49,19 +54,25 @@ public class DownloadDungeonAction {
 	private int openResponses;
 	private boolean canceled;
 
-	private List<Throwable> errors = new ArrayList<>(2);
-	private List<Net.HttpRequest> openRequests = new ArrayList<>();
+	private final List<Throwable> errors = new ArrayList<>(2);
+	private final List<Net.HttpRequest> openRequests = new ArrayList<>();
 
 	private String downloadToDir;
 	private final String dungeonName;
 	private boolean isCreator;
+	
+	private int filesToReceive;
+	private int receivedFiles;
 
 	public DownloadDungeonAction(String dungeonName, String folderID, ServerCommunication.OnDungeonReceive callback) {
 		this.dungeonName = dungeonName;
 		this.callback = callback;
 
 		Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-		httpRequest.setUrl(ServerCommunication.getURL() + "?action=downloadStart&folderID=" + folderID + "&userID=" + ServerCommunication.getUUID());
+		httpRequest.setUrl(ServerCommunication.getURL()
+				+ "?action=" + ACTION_START_DOWNLOAD
+				+ "&folderID=" + folderID
+				+ "&userID=" + ServerCommunication.getUUID());
 
 		callback.showWindow(httpRequest, () -> {
 			canceled = true;
@@ -82,32 +93,35 @@ public class DownloadDungeonAction {
 			public void handleHttpResponse(Net.HttpResponse httpResponse) {
 				if (canceled) return;
 				int statusCode = httpResponse.getStatus().getStatusCode();
-				if (statusCode == 200) {
-
-					downloadToDir = CustomDungeonSaves.initializeDownloading(dungeonName);
-
-					try {
-						Bundle[] bundles = Bundle.read(httpResponse.getResultAsStream()).getBundleArray();
-						isCreator = bundles[0].getBoolean("creator");
-
-						Game.runOnRenderThread(() -> {
-							callback.appendMessage(Messages.get(ServerCommunication.class, "connection_established"));
-						});
-
-						for (int i = 1; i < bundles.length; i++) {
-							Bundle b = bundles[i];
-							String id = b.getString("id");
-							String path = b.getString("path");
-							downloadFile(id, path);
-						}
-						if (bundles.length == 1) throw new RuntimeException("Files are missing on the server!");
-					} catch (IOException e) {
-						Game.runOnRenderThread(() -> callback.failed(e.getMessage() == null ? new IOException(String.valueOf(statusCode), e) : e));
-					}
-
-				} else {
-					Game.runOnRenderThread(() -> callback.failed(new SocketException(String.valueOf(statusCode))));
+				if (statusCode != HttpStatus.SC_OK) {
+					Game.runOnRenderThread(() -> callback.failed(new SocketException(statusCode + httpResponse.getResultAsString())));
+					return;
 				}
+				
+				downloadToDir = CustomDungeonSaves.initializeDownloading(dungeonName);
+				
+				try {
+					Bundle[] bundles = Bundle.read(httpResponse.getResultAsStream()).getBundleArray();
+					isCreator = bundles[0].getBoolean("creator");
+					
+					receivedFiles = 0;
+					filesToReceive = bundles.length-1;
+					
+					Game.runOnRenderThread(() -> {
+						callback.setMessage(Messages.get(ServerCommunication.class, "downloading_files", receivedFiles, filesToReceive));
+					});
+					
+					for (int i = 1; i < bundles.length; i++) {
+						Bundle b = bundles[i];
+						String id = b.getString("id");
+						String path = b.getString("path");
+						downloadFile(id, path);
+					}
+					if (bundles.length == 1) throw new RuntimeException("Files are missing on the server!");
+				} catch (IOException e) {
+					Game.runOnRenderThread(() -> callback.failed(e.getMessage() == null ? new IOException(String.valueOf(statusCode), e) : e));
+				}
+
 			}
 
 			@Override
@@ -123,7 +137,9 @@ public class DownloadDungeonAction {
 
 	private void downloadFile(String id, String path) {
 		Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.GET);
-		httpRequest.setUrl(ServerCommunication.getURL() + "?action=downloadFile&fileID=" + id);
+		httpRequest.setUrl(ServerCommunication.getURL()
+				+ "?action=" + ACTION_DOWNLOAD_FILE
+				+ "&fileID=" + id);
 		openRequests.add(httpRequest);
 		openResponses++;
 		Gdx.net.sendHttpRequest(httpRequest, new FileDownloadListener(path) {
@@ -145,24 +161,29 @@ public class DownloadDungeonAction {
 
 		@Override
 		public void handleHttpResponse(Net.HttpResponse httpResponse) {
-			if (canceled) return;
-			int statusCode = httpResponse.getStatus().getStatusCode();
-			if (statusCode == 200) {
-				try {
-					String result = httpResponse.getResultAsString();
-					byte[] bytes = Base64Coder.decode(result.replace(' ', '+'));
-					CustomDungeonSaves.writeBytesToFileNoBackup(downloadToDir, path, bytes);
-
-					Game.runOnRenderThread(() -> {
-						callback.appendMessage(Messages.get(ServerCommunication.class, "received", path));
-					});
-
-				} catch (Exception e) {
-					errors.add(e);
-				}
-			} else {
-				errors.add((new SocketException(String.valueOf(statusCode))));
+			if (canceled) {
+				return;
 			}
+			int statusCode = httpResponse.getStatus().getStatusCode();
+			String result = httpResponse.getResultAsString();
+			if (statusCode != HttpStatus.SC_OK) {
+				errors.add((new SocketException(String.valueOf(statusCode))));
+				decreaseOpenResponses();
+				return;
+			}
+			try {
+				byte[] bytes = Base64Coder.decode(result.replace(' ', '+'));
+				CustomDungeonSaves.writeBytesToFileNoBackup(downloadToDir, path, bytes);
+				
+				Game.runOnRenderThread(() -> {
+					receivedFiles++;
+					callback.setMessage(Messages.get(ServerCommunication.class, "downloading_files", receivedFiles, filesToReceive));
+				});
+				
+			} catch (Exception e) {
+				errors.add(e);
+			}
+			
 			decreaseOpenResponses();
 		}
 
@@ -191,14 +212,20 @@ public class DownloadDungeonAction {
 						CustomDungeonSaves.completeDownloading(downloadToDir, dungeonName);
 						CustomDungeon dungeon = CustomDungeonSaves.loadDungeon(dungeonName);
 						if (dungeon != null) {
-							dungeon.downloaded = !isCreator;
+							dungeon.doQuickNameChangeAfterDownload(dungeonName);
+							dungeon.downloaded = !isCreator && !DeviceCompat.isDebug();
 							CustomDungeonSaves.saveDungeon(dungeon);
 							Game.runOnRenderThread(() -> callback.accept(dungeon.createInfo()));
-						} else throw new Exception("Dungeon is corrupted!");
+						} else {
+							throw new Exception("Dungeon is corrupted!");
+						}
 					} catch (Exception e) {
 						Game.runOnRenderThread(() -> callback.failed(e));
 					}
-				} else Game.runOnRenderThread(() -> callback.failed(errors.get(0)));
+					
+				} else {
+					Game.runOnRenderThread(() -> callback.failed(errors.get(0)));
+				}
 			}
 		}
 

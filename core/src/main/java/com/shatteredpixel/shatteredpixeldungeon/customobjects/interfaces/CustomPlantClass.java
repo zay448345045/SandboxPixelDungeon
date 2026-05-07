@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,10 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces;
 
+import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.ActionPartModify;
+import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.parts.ModifyInInv;
 import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.parts.PlantActionPart;
 import com.shatteredpixel.shatteredpixeldungeon.plants.Plant;
 
@@ -34,7 +36,7 @@ public interface CustomPlantClass extends CustomGameObjectClass {
 	static ActionPartModify doUpdateInheritStats(CustomGameObjectClass self, GameObject obj, CustomGameObjectClass customClass) {
 		Plant m = (Plant) obj;
 		Plant template = (Plant) self;
-		ActionPartModify modify = new PlantActionPart.Modify(m);
+		ActionPartModify modify = m.pos == -1 || Dungeon.level == null ? new ModifyInInv(m) : new PlantActionPart.Modify(m);
 		if (customClass.getInheritStats()) {
 			obj.copyStats(template);
 		}

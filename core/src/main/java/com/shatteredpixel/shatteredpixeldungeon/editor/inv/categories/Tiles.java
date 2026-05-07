@@ -66,7 +66,8 @@ import static com.shatteredpixel.shatteredpixeldungeon.levels.Terrain.*;
 public enum Tiles {
 
 
-    EMPTY(Terrain.EMPTY, EMPTY_DECO, WATER, GRASS, HIGH_GRASS, FURROWED_GRASS, EMPTY_SP, PEDESTAL, EMBERS),
+    EMPTY(Terrain.EMPTY, EMPTY_DECO, WATER, GRASS, HIGH_GRASS, FURROWED_GRASS, EMPTY_SP, PEDESTAL, EMBERS,
+            BARREL, BARREL_ALT, CAGE, CAGE_ALT, METAL_STRUCTURE, METAL_STRUCTURE_ALT, FLAMING_PEDESTAL, FLAMING_PEDESTAL_ALT, RUBBLE, RUBBLE_ALT),
     WALL(Terrain.WALL, WALL_DECO, BOOKSHELF, BARRICADE, STATUE, STATUE_SP, CHASM),
     DOOR(Terrain.DOOR, OPEN_DOOR, LOCKED_DOOR, CRYSTAL_DOOR, SECRET_DOOR, SECRET_LOCKED_DOOR, SECRET_CRYSTAL_DOOR, COIN_DOOR, LOCKED_EXIT, UNLOCKED_EXIT, MIMIC_DOOR),
     SPECIAL(ENTRANCE, ENTRANCE_SP, EXIT, EMPTY_WELL, WELL, ALCHEMY, SIGN, MINE_CRYSTAL, MINE_BOULDER);
@@ -278,6 +279,8 @@ public enum Tiles {
         customTileBag.items.add(new CustomTileItem(new CavesBossLevel.TrapTile(), -1));
         customTileBag.items.add(new CustomTileItem(new CavesBossLevel.MetalGate(), -1));
         customTileBag.items.add(new CustomTileItem(new CityBossLevel.KingsThrone(), -1));
+//		customTileBag.items.add(new CustomTileItem(new AmbitiousImpRoom.EntranceBarrier(), -1));
+//		customTileBag.items.add(new CustomTileItem(new AmbitiousImpRoom.QuestEntrance(), -1));
 //        customTileBag.items.add(new CustomTileItem(new SewerBossExitRoom.SewerExit(), -1));
 //        customTileBag.items.add(new CustomTileItem(new SewerBossExitRoom.SewerExitOverhang(), -1));
         customTileBag.items.add(new CustomTileItem(new DemonSpawnerRoom.NoDemonSpawnerFloor(), -1));

@@ -4,10 +4,10 @@
  *  * Copyright (C) 2012-2015 Oleg Dolya
  *  *
  *  * Shattered Pixel Dungeon
- *  * Copyright (C) 2014-2024 Evan Debenham
+ *  * Copyright (C) 2014-2025 Evan Debenham
  *  *
  *  * Sandbox Pixel Dungeon
- *  * Copyright (C) 2023-2024 AlphaDraxonis
+ *  * Copyright (C) 2023-2025 AlphaDraxonis
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ package com.shatteredpixel.shatteredpixeldungeon.customobjects;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
+import com.shatteredpixel.shatteredpixeldungeon.editor.lua.LuaRestrictionProxy;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
@@ -42,9 +43,7 @@ import com.watabou.utils.Bundle;
 import com.watabou.utils.Reflection;
 import org.luaj.vm2.LuaError;
 import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaUserdata;
 import org.luaj.vm2.LuaValue;
-import org.luaj.vm2.lib.jse.CoerceJavaToLua;
 
 import java.lang.reflect.Modifier;
 
@@ -110,24 +109,6 @@ public class LuaManager {
 		return globals.load(code);
 	}
 
-	/**
-	 * <b><u>Not</u> USABLE FOR STRINGS!!!</b>
-	 */
-	public static <T> T[] luaTableToJavaArray(LuaTable table, T[] result) {
-		for (int i = 0; i < result.length; i++) {
-			result[i] = (T) table.get(i + 1).touserdata();
-		}
-		return result;
-	}
-
-	public static String[] luaTableToJavaArray(LuaTable table) {
-		String[] result = new String[table.length()];
-		for (int i = 0; i < result.length; i++) {
-			result[i] = table.get(i + 1).tojstring();
-		}
-		return result;
-	}
-
 
 	//*** FOR BUNDLING ***
 
@@ -136,7 +117,7 @@ public class LuaManager {
 
 			Object obj = value.touserdata();
 			if (obj instanceof Copyable) obj = ((Copyable<?>) obj).getCopy();
-			return new LuaUserdata(obj);
+			return LuaRestrictionProxy.wrapObject(obj);
 
 		} else if (value.istable()) {
 
@@ -211,7 +192,7 @@ public class LuaManager {
 		switch (bundle.getInt(TYPE_OF_PREFIX + key)) {
 			default:
 			case 0: return null;
-			case TYPE_BUNDLABLE: return CoerceJavaToLua.coerce(bundle.get(key));
+			case TYPE_BUNDLABLE: return LuaRestrictionProxy.wrapObject(bundle.get(key));
 			case TYPE_INT: return LuaValue.valueOf(bundle.getInt(key));
 			case TYPE_BOOLEAN: return LuaValue.valueOf(bundle.getBoolean(key));
 			case TYPE_STRING: return LuaValue.valueOf(bundle.getString(key));

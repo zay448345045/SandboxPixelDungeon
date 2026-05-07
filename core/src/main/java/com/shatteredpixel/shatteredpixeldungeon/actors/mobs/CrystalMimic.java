@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ public class CrystalMimic extends Mimic {
 					}
 				}
 				if (desc == null && !items.isEmpty())
-					desc = Messages.get(this, "crystal_chest_desc", Messages.get(Heap.class, "sth"));
+					desc = Messages.get(Heap.class, "crystal_chest_desc", Messages.get(Heap.class, "sth"));
 			}
 			if (desc == null) {
 				desc = Messages.get(Heap.class, "crystal_chest_desc_none");
@@ -164,7 +164,7 @@ public class CrystalMimic extends Mimic {
 			if (!item.stackable) {
 				Dungeon.quickslot.convertToPlaceholder(item);
 			}
-			item.updateQuickslot();
+			Item.updateQuickslot();
 
 			if (item instanceof Honeypot){
 				items.add(((Honeypot)item).shatter(this, this.pos));

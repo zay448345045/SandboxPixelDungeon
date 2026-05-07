@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,12 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Invisibility;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Vulnerable;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.*;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Bat;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Bee;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Crab;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Scorpio;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Spinner;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Swarm;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.BlacksmithQuest;
 import com.shatteredpixel.shatteredpixeldungeon.effects.CellEmitter;
@@ -99,15 +104,10 @@ public class Pickaxe extends MeleeWeapon {
 		
 		if (action.equals(AC_MINE)) {
 			
-			if (Dungeon.level.levelScheme.getVisualRegion() != LevelScheme.REGION_CAVES) {
-				GLog.w( Messages.get(this, "no_vein") );
-				return;
-			}
-			
 			for (int i = 0; i < PathFinder.NEIGHBOURS8.length; i++) {
 				
 				final int pos = hero.pos + PathFinder.NEIGHBOURS8[i];
-				if (Dungeon.level.map[pos] == Terrain.WALL_DECO) {
+				if (Dungeon.level.map[pos] == Terrain.WALL_DECO && Dungeon.level.isVisualRegionAtTile(pos, LevelScheme.REGION_CAVES)) {
 				
 					hero.spend( TIME_TO_MINE );
 					hero.busy();
@@ -121,6 +121,7 @@ public class Pickaxe extends MeleeWeapon {
 							Sample.INSTANCE.play( Assets.Sounds.EVOKE );
 							
 							Level.set( pos, Terrain.WALL );
+							Dungeon.level.visualMap[pos] = Terrain.WALL;
 							GameScene.updateMap( pos );
 							
 							DarkGold gold = new DarkGold();

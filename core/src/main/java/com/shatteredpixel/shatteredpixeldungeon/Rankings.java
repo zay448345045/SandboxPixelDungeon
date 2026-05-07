@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.quest.CorpseDust;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.Trinket;
+import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MeleeWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.ui.QuickSlotButton;
@@ -197,29 +198,29 @@ public enum Rankings {
 
 		Statistics.exploreScore = 0;
 		int scorePerFloor = Statistics.floorsExplored.size() * 50;
-		for (Boolean b : Statistics.floorsExplored.values()){
-			if (b) Statistics.exploreScore += scorePerFloor;
+		for (float percentExplored : Statistics.floorsExplored.values()){
+			Statistics.exploreScore += Math.round(percentExplored*scorePerFloor);
 		}
 
-		Statistics.totalBossScore = 0;
-		for (int i : Statistics.bossScores){
-			if (i > 0) Statistics.totalBossScore += i;
-		}
+			Statistics.totalBossScore = 0;
+			for (int i : Statistics.bossScores){
+				if (i > 0) Statistics.totalBossScore += i;
+			}
 
-		Statistics.totalQuestScore = 0;
-		for (int i : Statistics.questScores){
-			if (i > 0) Statistics.totalQuestScore += i;
-		}
+			Statistics.totalQuestScore = 0;
+			for (int i : Statistics.questScores){
+				if (i > 0) Statistics.totalQuestScore += i;
+			}
 
-		Statistics.winMultiplier = 1f;
-		if (Statistics.gameWon)         Statistics.winMultiplier += 1f;
-		if (Statistics.ascended)        Statistics.winMultiplier += 0.5f;
+			Statistics.winMultiplier = 1f;
+			if (Statistics.gameWon)         Statistics.winMultiplier += 1f;
+			if (Statistics.ascended)        Statistics.winMultiplier += 0.5f;
 
         Statistics.chalMultiplier = (float) Math.pow(1.25, Challenges.activeChallenges());
         Statistics.chalMultiplier = Math.round(Statistics.chalMultiplier * 20f) / 20f;
 
-        Statistics.totalScore = Statistics.progressScore + Statistics.treasureScore + Statistics.exploreScore
-                + Statistics.totalBossScore + Statistics.totalQuestScore;
+		Statistics.totalScore = Statistics.progressScore + Statistics.treasureScore + Statistics.exploreScore
+					+ Statistics.totalBossScore + Statistics.totalQuestScore;
 
 		Statistics.totalScore *= Statistics.winMultiplier * Statistics.chalMultiplier;
 
@@ -266,7 +267,10 @@ public enum Rankings {
 
 		//remove all buffs (ones tied to equipment will be re-applied)
 		for(Buff b : Dungeon.hero.buffs()){
-			Dungeon.hero.remove(b);
+			//except Duelist's melee weapon charge buff
+			if (!(b instanceof MeleeWeapon.Charger)) {
+				Dungeon.hero.remove(b);
+			}
 		}
 
 		rec.gameData.put( HERO, Dungeon.hero );

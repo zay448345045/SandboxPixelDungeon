@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -274,7 +274,7 @@ public class SpiritBow extends Weapon {
 				case DAMAGE:
 					return 2f;
 			}
-		} else {
+		} else{
 			return super.baseDelay(owner);
 		}
 	}
@@ -317,6 +317,13 @@ public class SpiritBow extends Weapon {
 			image = ItemSpriteSheet.SPIRIT_ARROW;
 
 			hitSound = Assets.Sounds.HIT_ARROW;
+
+			setID = 0;
+		}
+
+		@Override
+		public int defaultQuantity() {
+			return 1;
 		}
 
 		@Override
@@ -402,7 +409,7 @@ public class SpiritBow extends Weapon {
 						user.buff(Talent.LethalMomentumTracker.class).detach();
 						user.next();
 					} else {
-						user.spendAndNext(castDelay(user, dst));
+						user.spendAndNext(castDelay(user, cell));
 					}
 					sniperSpecial = false;
 					flurryCount = -1;
@@ -420,56 +427,56 @@ public class SpiritBow extends Weapon {
 				
 				throwSound();
 
-				if (user.sprite != null)
+				Callback callback = new Callback() {
+					@Override
+					public void call() {
+						if (enemy.isAlive()) {
+							curUser = user;
+							onThrow(cell);
+						}
+						
+						flurryCount--;
+						if (flurryCount > 0){
+							Actor.add(new Actor() {
+								
+								{
+									actPriority = VFX_PRIO-1;
+								}
+								
+								@Override
+								protected boolean act() {
+									flurryActor = this;
+									int target = QuickSlotButton.autoAim(enemy, SpiritArrow.this);
+									if (target == -1) target = cell;
+									cast(user, target);
+									Actor.remove(this);
+									return false;
+								}
+							});
+							curUser.next();
+						} else {
+							if (user.buff(Talent.LethalMomentumTracker.class) != null){
+								user.buff(Talent.LethalMomentumTracker.class).detach();
+								user.next();
+							} else {
+								user.spendAndNext(castDelay(user, cell));
+							}
+							sniperSpecial = false;
+							flurryCount = -1;
+						}
+						
+						if (flurryActor != null){
+							flurryActor.next();
+							flurryActor = null;
+						}
+					}
+				};
+				if (user.sprite != null) {
 					user.sprite.zap(cell);
-				((MissileSprite) user.sprite.parent.recycle(MissileSprite.class)).
-						reset(user.sprite,
-								cell,
-								this,
-								new Callback() {
-									@Override
-									public void call() {
-										if (enemy.isAlive()) {
-											curUser = user;
-											onThrow(cell);
-										}
-
-										flurryCount--;
-										if (flurryCount > 0){
-											Actor.add(new Actor() {
-
-												{
-													actPriority = VFX_PRIO-1;
-												}
-
-												@Override
-												protected boolean act() {
-													flurryActor = this;
-													int target = QuickSlotButton.autoAim(enemy, SpiritArrow.this);
-													if (target == -1) target = cell;
-													cast(user, target);
-													Actor.remove(this);
-													return false;
-												}
-											});
-											curUser.next();
-										} else {
-											if (user.buff(Talent.LethalMomentumTracker.class) != null){
-												user.buff(Talent.LethalMomentumTracker.class).detach();
-												user.next();
-											} else {
-												user.spendAndNext(castDelay(user, dst));
-											}
-											sniperSpecial = false;
-											flurryCount = -1;
-										}
-
-										if (flurryActor != null){
-											flurryActor.next();
-											flurryActor = null;
-										}
-									}
-								});
+					MissileSprite.missileFromChar(this, user.sprite, cell, callback);
+				} else {
+					callback.call();
+				}
 				
 			} else {
 

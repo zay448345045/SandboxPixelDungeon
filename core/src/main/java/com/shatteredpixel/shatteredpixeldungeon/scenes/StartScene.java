@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,12 +40,12 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Journal;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
-import com.shatteredpixel.shatteredpixeldungeon.ui.Archs;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Button;
 import com.shatteredpixel.shatteredpixeldungeon.ui.ExitButton;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.shatteredpixel.shatteredpixeldungeon.ui.StyledButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.TitleBackground;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.shatteredpixel.shatteredpixeldungeon.windows.IconTitle;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndGameInProgress;
@@ -57,6 +57,7 @@ import com.watabou.noosa.Game;
 import com.watabou.noosa.Image;
 import com.watabou.noosa.NinePatch;
 import com.watabou.noosa.ui.Component;
+import com.watabou.utils.RectF;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -79,13 +80,16 @@ public class StartScene extends PixelScene {
 		Journal.loadGlobal();
 		
 		uiCamera.visible = false;
-		
+
 		int w = Camera.main.width;
 		int h = Camera.main.height;
-		
-		Archs archs = new Archs();
-		archs.setSize( w, h );
-		add( archs );
+		RectF insets = getCommonInsets();
+
+		TitleBackground BG = new TitleBackground(w, h);
+		add( BG );
+
+		w -= insets.left + insets.right;
+		h -= insets.top + insets.bottom;
 		
 		ExitButton btnExit = new ExitButton() {
 			@Override
@@ -94,7 +98,7 @@ public class StartScene extends PixelScene {
 				skipDungeonSelection = false;
 			}
 		};
-		btnExit.setPos( w - btnExit.width(), 0 );
+		btnExit.setPos( insets.left + w - btnExit.width(), insets.top );
 		add( btnExit );
 		
 		
@@ -177,7 +181,7 @@ public class StartScene extends PixelScene {
 		};
 		add(dungeonSelection);
 		
-		dungeonSelection.setRect(10, 0, w - 20, h - 20);
+		dungeonSelection.setRect(10, 0, Math.max(SLOT_WIDTH, w - 20), h - 20);
 		
 		GamesInProgress.curSlot = GamesInProgress.NO_SLOT;
 		
@@ -582,13 +586,13 @@ public class StartScene extends PixelScene {
 				}
 			}
 			if (featuredInfo != null) allInfos.remove(featuredInfo);
-			DungeonScene.show(new WndSelectDungeon(allInfos,false, featuredInfo, featuredLabel) {
+			DungeonScene.show(new WndSelectDungeon(allInfos,false, featuredInfo, featuredLabel, false) {
 				@Override
-				protected void select(String customDungeonName) {
+				protected void select(CustomDungeonSaves.Info dungeonInfo) {
 					GamesInProgress.selectedClass = selectClass;
 					GamesInProgress.curSlot = slot;
 					
-					OpenDungeonScene.openDungeon(customDungeonName, OpenDungeonScene.Mode.GAME_LOAD);
+					OpenDungeonScene.openDungeon(dungeonInfo.name, OpenDungeonScene.Mode.GAME_LOAD);
 				}
 			});
 		}

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,9 +25,10 @@ import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.actors.DefaultStatsCache;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.FlavourBuff;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.TrapItem;
+import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Bestiary;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
@@ -36,7 +37,7 @@ import com.watabou.noosa.Image;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.Bundle;
 
-public abstract class Trap extends GameObject implements Copyable<Trap> {
+public abstract class Trap extends GameObject {
 
 	//trap colors
 	public static final int RED     = 0;
@@ -136,7 +137,18 @@ public abstract class Trap extends GameObject implements Copyable<Trap> {
 	}
 
 	public Image getSprite() {
-		return EditorUtilities.getTerrainFeatureTexture((active ? color : Trap.BLACK) + (shape * 16) + (visible ? 0 : 128));
+		return EditorUtilities.getTerrainFeatureTexture(getImagePosOnSpriteSheet(true));
+	}
+	
+	public int getImagePosOnSpriteSheet(boolean forceShowIfHidden) {
+		//active/inactive, invisible/half-visible/visible
+		if (visible) {
+			return (active ? color : Trap.BLACK) + (shape * 16);
+		}
+		if (forceShowIfHidden || Dungeon.customDungeon.seeSecrets || CustomDungeon.isEditing()) {
+			return (active ? color : Trap.BLACK) + shape * 16 + 128;
+		}
+		return -1;
 	}
 
 	@Override
@@ -178,14 +190,12 @@ public abstract class Trap extends GameObject implements Copyable<Trap> {
 		bundle.put( VISIBLE, visible );
 		bundle.put( ACTIVE, active );
 		Trap defaultObj = DefaultStatsCache.getDefaultObject(getClass());
-		if (disarmedByActivation != defaultObj.disarmedByActivation)
-			bundle.put(DISARMED_BY_ACTIVATION, disarmedByActivation);
-		if (canBeSearched != defaultObj.canBeSearched)
-			bundle.put(CAN_BE_SEARCHED, canBeSearched);
-		if (canBeSearchedByMagic != defaultObj.canBeSearchedByMagic)
-			bundle.put(CAN_BE_SEARCHED_BY_MAGIC, canBeSearchedByMagic);
-		if (revealedWhenTriggered != defaultObj.revealedWhenTriggered)
-			bundle.put(REVEALED_WHEN_TRIGGERED, revealedWhenTriggered);
+		if (defaultObj != null) {
+			if (disarmedByActivation != defaultObj.disarmedByActivation || storeEverythingInBundle) bundle.put(DISARMED_BY_ACTIVATION, disarmedByActivation);
+			if (canBeSearched != defaultObj.canBeSearched || storeEverythingInBundle) bundle.put(CAN_BE_SEARCHED, canBeSearched);
+			if (canBeSearchedByMagic != defaultObj.canBeSearchedByMagic || storeEverythingInBundle) bundle.put(CAN_BE_SEARCHED_BY_MAGIC, canBeSearchedByMagic);
+			if (revealedWhenTriggered != defaultObj.revealedWhenTriggered || storeEverythingInBundle) bundle.put(REVEALED_WHEN_TRIGGERED, revealedWhenTriggered);
+		}
 	}
 
 	@Override
@@ -200,7 +210,9 @@ public abstract class Trap extends GameObject implements Copyable<Trap> {
 		if (template == null) return;
 		if (getClass() != template.getClass()) return;
 		Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
 		bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
 		bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
 		int pos = this.pos;
@@ -211,5 +223,10 @@ public abstract class Trap extends GameObject implements Copyable<Trap> {
 //		if (replaceSprite && sprite != null) {
 //			EditorScene.replaceMobSprite(this, ((Mob) template).spriteClass);
 //		}
+	}
+
+	//this buff is used to keep track of hazards recently affecting a character
+	public static class HazardAssistTracker extends FlavourBuff{
+		public static final float DURATION = 50f;
 	}
 }

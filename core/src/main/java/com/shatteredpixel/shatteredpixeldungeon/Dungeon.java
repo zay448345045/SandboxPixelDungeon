@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Dread;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Light;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MagicalSight;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MindVision;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MindVisionImmunity;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.RevealedArea;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Terror;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
@@ -80,6 +81,7 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.MiningLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.PrisonBossLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.RegularLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.SewerBossLevel;
+import com.shatteredpixel.shatteredpixeldungeon.levels.VaultLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.SentryRoom;
@@ -95,7 +97,6 @@ import com.watabou.noosa.Game;
 import com.watabou.utils.BArray;
 import com.watabou.utils.Bundlable;
 import com.watabou.utils.Bundle;
-import com.watabou.utils.DeviceCompat;
 import com.watabou.utils.FileUtils;
 import com.watabou.utils.PathFinder;
 import com.watabou.utils.Random;
@@ -192,20 +193,12 @@ public class Dungeon {
 				}
 				
 			}
-
-			//pre-v2.2.0 saves
-			if (Dungeon.version < 750
-					&& Dungeon.isChallenged(Challenges.NO_SCROLLS)
-					&& UPGRADE_SCROLLS.count > 0){
-				//we now count SOU fully, and just don't drop every 2nd one
-				UPGRADE_SCROLLS.count += UPGRADE_SCROLLS.count-1;
-			}
 		}
 
 	}
 
 	public static int challenges;
-	public static int mobsToChampion;
+	public static float mobsToChampion;
 
 	public static Hero hero;
 	public static Level level;
@@ -245,6 +238,21 @@ public class Dungeon {
 	public static String levelName;
 
 	public static DungeonScript dungeonScript = Reflection.newInstance(LuaClassGenerator.luaUserContentClass(DungeonScript.class));
+	
+	static {
+		if (dungeonScript == null) {
+			new Thread(() -> {
+				while (dungeonScript == null) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					dungeonScript = Reflection.newInstance(LuaClassGenerator.luaUserContentClass(DungeonScript.class));
+				}
+			}).start();
+		}
+	}
 
 	//we initialize the seed separately so that things like interlevelscene can access it early
 	public static void initSeed(){
@@ -303,7 +311,7 @@ public class Dungeon {
 
 			initialVersion = version = Game.versionCode;
 			challenges = SPDSettings.challenges(true);
-			mobsToChampion = -1;
+			mobsToChampion = 1;
 
 		Actor.clear();
 		Actor.resetNextID();
@@ -363,12 +371,13 @@ public class Dungeon {
 
         BossHealthBar.reset();
 
-		hero = new Hero();
+		CustomObjectManager.loadScripts(true);
+		
+		hero = Dungeon.dungeonScript.createHero();
 		hero.live();
 		
 		Badges.reset();
 
-		CustomObjectManager.loadScripts(true);
 		GamesInProgress.selectedClass.initHero( hero );
 	}
 
@@ -431,7 +440,17 @@ public class Dungeon {
             level.name = levelName;
             ((MiningLevel) level).destCell = Dungeon.hero.pos;
             level.create();
-        } else level = customDungeon.getFloor(levelName).initLevel();
+        }
+        else if (branch == QuestLevels.IMP.ID) {
+            Dungeon.level = level = new VaultLevel();
+            level.setLevelScheme(customDungeon.getFloor(levelName));
+            level.name = levelName;
+			((VaultLevel) level).destCell = Dungeon.hero.pos;
+            level.create();
+        }
+		else {
+			level = customDungeon.getFloor(levelName).initLevel();
+		}
 
 		Dungeon.level = null;
 
@@ -482,7 +501,7 @@ public class Dungeon {
 	}
 
 	public static long seedForLevel(String levelName, int branch) {
-		return customDungeon.getFloor(levelName).getSeed() + 13 * branch;
+		return customDungeon.getFloor(levelName).getSeed() + 13L * branch;
 	}
 
 	public static boolean bossLevel() {
@@ -504,12 +523,9 @@ public class Dungeon {
 	}
 
 	public static boolean interfloorTeleportAllowed(){
-		if (Dungeon.level.locked()
-				|| Dungeon.level instanceof MiningLevel
-				|| (Dungeon.hero != null && Dungeon.hero.belongings.getItem(Amulet.class) != null)){
-			return false;
-		}
-		return true;
+		return !Dungeon.level.locked()
+				&& !(Dungeon.level instanceof MiningLevel)
+				&& (Dungeon.hero == null || Dungeon.hero.belongings.getItem(Amulet.class) == null);
 	}
 
 	public static void switchLevel( final Level level, int pos ) {
@@ -601,8 +617,7 @@ public class Dungeon {
 			int targetPOSLeft = 2 - floorThisSet / 2;
 			if (floorThisSet % 2 == 1 && Random.Int(2) == 0) targetPOSLeft--;
 			
-			if (targetPOSLeft < posLeftThisSet) return true;
-			else return false;
+			return targetPOSLeft < posLeftThisSet;
 		}
         return false;//uses ItemDistribution
     }
@@ -679,9 +694,7 @@ public class Dungeon {
 	public static boolean labRoomNeeded() {
 		LevelScheme ls = curLvlScheme();
 		if (ls.getRegion() > LimitedDrops.LAB_ROOM.count){
-			if (ls.getNumInRegion() >= 4 || (ls.getNumInRegion() == 3 && Random.Int(2) == 0)){
-				return true;
-			}
+			return ls.getNumInRegion() >= 4 || (ls.getNumInRegion() == 3 && Random.Int(2) == 0);
 		}
 		return false;
 	}
@@ -767,7 +780,7 @@ public class Dungeon {
 			bundle.put ( LIMDROPS, limDrops );
 			
 			int count = 0;
-			int ids[] = new int[chapters.size()];
+			int[] ids = new int[chapters.size()];
 			for (Integer id : chapters) {
 				ids[count++] = id;
 			}
@@ -857,7 +870,6 @@ public class Dungeon {
 		Bundle bundle = FileUtils.bundleFromFile( GamesInProgress.gameFile( save ) );
 
         initialVersion = bundle.getInt(INIT_VER);
-
 		version = bundle.getInt( VERSION );
 
 		seed = bundle.contains( SEED ) ? bundle.getLong( SEED ) : DungeonSeed.randomSeed();
@@ -873,7 +885,7 @@ public class Dungeon {
 		Toolbar.swappedQuickslots = false;
 
 		Dungeon.challenges = bundle.getInt( CHALLENGES );
-		Dungeon.mobsToChampion = bundle.getInt( MOBS_TO_CHAMPION );
+		Dungeon.mobsToChampion = bundle.getFloat( MOBS_TO_CHAMPION );
 		
 		Dungeon.level = null;
 		Dungeon.depth = -1;
@@ -889,6 +901,8 @@ public class Dungeon {
         int[] visitedDepthsArray = bundle.getIntArray(VISITED_DEPTHS);
         visitedDepths = new HashSet<>();
         if (visitedDepthsArray != null) for (int d : visitedDepthsArray) visitedDepths.add(d);
+		
+		customDungeon = (CustomDungeon) bundle.get( CUSTOM_DUNGEON );
 
         quickslot.restorePlaceholders(bundle);
 
@@ -896,55 +910,69 @@ public class Dungeon {
 
             LimitedDrops.restore(bundle.getBundle(LIMDROPS));
 
-            chapters = new HashSet<>();
-            int[] ids = bundle.getIntArray(CHAPTERS);
-            if (ids != null) {
-                for (int id : ids) {
-                    chapters.add(id);
-                }
-            }
+			chapters = new HashSet<>();
+			int[] ids = bundle.getIntArray( CHAPTERS );
+			if (ids != null) {
+				for (int id : ids) {
+					chapters.add( id );
+				}
+			}
+			
+			Bundle quests = bundle.getBundle( QUESTS );
+			if (!quests.isNull()) {
+				GhostQuest.restoreStatics( quests );
+				WandmakerQuest.restoreStatics( quests );
+				BlacksmithQuest.restoreStatics( quests );
+				ImpQuest.restoreStatics( quests );
+			} else {
+				GhostQuest.reset();
+				WandmakerQuest.reset();
+				BlacksmithQuest.reset();
+				ImpQuest.reset();
+			}
+			
+			BossHealthBar.restoreFromBundle(bundle);
+			
+			SpecialRoom.restoreRoomsFromBundle(bundle);
+			SecretRoom.restoreRoomsFromBundle(bundle);
+		}
 
-            Bundle quests = bundle.getBundle(QUESTS);
-            if (!quests.isNull()) {
-                GhostQuest.restoreStatics(quests);
-                WandmakerQuest.restoreStatics(quests);
-                BlacksmithQuest.restoreStatics(quests);
-                ImpQuest.restoreStatics(quests);
-            } else {
-                GhostQuest.reset();
-                WandmakerQuest.reset();
-                BlacksmithQuest.reset();
-                ImpQuest.reset();
-            }
-
-            BossHealthBar.restoreFromBundle(bundle);
-
-            SpecialRoom.restoreRoomsFromBundle(bundle);
-            SecretRoom.restoreRoomsFromBundle(bundle);
-        }
-
-        Bundle badges = bundle.getBundle(BADGES);
-        if (!badges.isNull()) {
-            Badges.loadLocal(badges);
-        } else {
-            Badges.reset();
-        }
-
-        Notes.restoreFromBundle(bundle);
-
-        hero = null;
-        hero = (Hero) bundle.get(HERO);
-
-        depth = bundle.getInt(DEPTH);
-        branch = bundle.getInt( BRANCH );
-        levelName = bundle.getString(LEVEL_NAME);
-
+		Bundle badges = bundle.getBundle(BADGES);
+		if (!badges.isNull()) {
+			Badges.loadLocal( badges );
+		} else {
+			Badges.reset();
+		}
+		
+		Notes.restoreFromBundle( bundle );
+		
+		hero = null;
+		hero = (Hero)bundle.get( HERO );
+		
+		depth = bundle.getInt( DEPTH );
+		branch = bundle.getInt( BRANCH );
+		levelName = bundle.getString( LEVEL_NAME );
+		
 		reachedCheckpoint = (Checkpoint.ReachedCheckpoint) bundle.get(REACHED_CHECKPOINT);
-
+		
+		
 		gold = bundle.getInt( GOLD );
 		energy = bundle.getInt( ENERGY );
-
-		customDungeon = (CustomDungeon) bundle.get( CUSTOM_DUNGEON );
+		
+		droppedItems = new HashMap<>();
+		for (String level : customDungeon.floorNames()) {
+			
+			//dropped items
+			ArrayList<Item> items = new ArrayList<>();
+			if (bundle.contains(Messages.format(DROPPED, level)))
+				for (Bundlable b : bundle.getCollection(Messages.format(DROPPED, level))) {
+					items.add((Item) b);
+				}
+			if (!items.isEmpty()) {
+				droppedItems.put(level, items);
+			}
+			
+		}
 		
 		if (bundle.contains(DUNGEON_SCRIPT)) {
 			dungeonScript = (DungeonScript) bundle.get(DUNGEON_SCRIPT);
@@ -952,26 +980,9 @@ public class Dungeon {
 
 		Statistics.restoreFromBundle( bundle );
 		Generator.restoreFromBundle( bundle );
-
-        droppedItems = new HashMap<>();
-        for (String level : customDungeon.floorNames()) {
-
-            //dropped items
-            ArrayList<Item> items = new ArrayList<>();
-            if (bundle.contains(Messages.format(DROPPED, level)))
-                for (Bundlable b : bundle.getCollection(Messages.format(DROPPED, level))) {
-                    items.add((Item) b);
-                }
-            if (!items.isEmpty()) {
-                droppedItems.put(level, items);
-            }
-
-		}
 		
 		FileUtils.resetDefaultFileType();
-		if (!DeviceCompat.isDesktop() && initialVersion < 743) {//v0.6 and older
-			CustomDungeonSaves.setCurDirectory(GamesInProgress.gameFolder(save) + "/dungeon_levels/");
-		} else CustomDungeonSaves.setCurDirectory(GamesInProgress.gameFolder(save) + "/");
+		CustomDungeonSaves.setCurDirectory(GamesInProgress.gameFolder(save) + "/");
 		
 		CustomTileLoader.loadTiles(true);
 		
@@ -1045,7 +1056,7 @@ public class Dungeon {
 
 	public static void updateLevelExplored(){
 		if (branch == 0 && level instanceof RegularLevel || level instanceof CustomLevel && !Dungeon.bossLevel()){
-			Statistics.floorsExplored.put( levelName, level.isLevelExplored(levelName));
+			Statistics.floorsExplored.put( levelName, level.levelExplorePercent(levelName));
 		}
 	}
 
@@ -1106,7 +1117,7 @@ public class Dungeon {
 
             if (hero.buff(MindVision.class) != null || hero.buff(DivineSense.DivineSenseTracker.class) != null) {
                 for (Mob m : level.mobs.toArray(new Mob[0])) {
-					if (m instanceof Mimic && m.alignment == Char.Alignment.NEUTRAL && ((Mimic) m).stealthy()){
+					if (m instanceof Mimic && m.alignment == Char.Alignment.NEUTRAL && ((Mimic) m).stealthy() || m.buff(MindVisionImmunity.class) != null){
 						continue;
 					}
 					BArray.or(level.visited, level.heroFOV, m.pos - 1 - level.width(), 3, level.visited);

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,16 +21,37 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.windows;
 
-import com.shatteredpixel.shatteredpixeldungeon.*;
+import com.shatteredpixel.shatteredpixeldungeon.Assets;
+import com.shatteredpixel.shatteredpixeldungeon.Badges;
+import com.shatteredpixel.shatteredpixeldungeon.Challenges;
+import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.QuickSlot;
+import com.shatteredpixel.shatteredpixeldungeon.Rankings;
+import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
+import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Belongings;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
+import com.shatteredpixel.shatteredpixeldungeon.items.EquipableItem;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.Trinket;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.Wand;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Languages;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.HeroSprite;
-import com.shatteredpixel.shatteredpixeldungeon.ui.*;
+import com.shatteredpixel.shatteredpixeldungeon.ui.BadgesGrid;
+import com.shatteredpixel.shatteredpixeldungeon.ui.BadgesList;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Button;
+import com.shatteredpixel.shatteredpixeldungeon.ui.CheckBox;
+import com.shatteredpixel.shatteredpixeldungeon.ui.IconButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
+import com.shatteredpixel.shatteredpixeldungeon.ui.ItemSlot;
+import com.shatteredpixel.shatteredpixeldungeon.ui.RedButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
+import com.shatteredpixel.shatteredpixeldungeon.ui.TalentButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.TalentsPane;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.shatteredpixel.shatteredpixeldungeon.utils.DungeonSeed;
 import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.ColorBlock;
@@ -254,9 +275,13 @@ public class WndRanking extends WndTabbed {
 					@Override
 					protected void onClick() {
 						super.onClick();
+						String message = Messages.get(WndRanking.StatsTab.this, "copy_seed_desc");
+						message = message.replace("Shattered Pixel Dungeon", "Sandbox Pixel Dungeon");
+						message = message.replace("Shattered PD", "Sandbox PD");
+						message = message.replace("ShatteredPD", "SandboxPD");
 						SandboxPixelDungeon.scene().addToFront(new WndOptions(new Image(icon),
 								Messages.get(WndRanking.StatsTab.this, "copy_seed"),
-								Messages.get(WndRanking.StatsTab.this, "copy_seed_desc"),
+								message,
 								Messages.get(WndRanking.StatsTab.this, "copy_seed_copy"),
 								Messages.get(WndRanking.StatsTab.this, "copy_seed_cancel")){
 							@Override
@@ -281,14 +306,24 @@ public class WndRanking extends WndTabbed {
 		}
 		
 		private float statSlot( Group parent, String label, String value, float pos ) {
-			
-			RenderedTextBlock txt = PixelScene.renderTextBlock( label, 7 );
+
+			int size = 7;
+			RenderedTextBlock txt;
+			do {
+				txt = PixelScene.renderTextBlock( label, size );
+				size--;
+			} while (txt.width() >= WIDTH * 0.55f);
+			txt.setPos(0, pos + (6 - txt.height())/2);
+			PixelScene.align(txt);
 			txt.setHighlighting(false);
-			txt.setPos(0, pos);
 			parent.add( txt );
-			
-			txt = PixelScene.renderTextBlock( value, 7 );
-			txt.setPos(WIDTH * 0.6f, pos);
+
+			size = 7;
+			do {
+				txt = PixelScene.renderTextBlock( value, size );
+				size--;
+			} while (txt.width() >= WIDTH * 0.45f);
+			txt.setPos(WIDTH * 0.55f, pos + (6 - txt.height())/2);
 			PixelScene.align(txt);
 			parent.add( txt );
 			
@@ -469,11 +504,17 @@ public class WndRanking extends WndTabbed {
 			
 			slot.item( item );
 			if (item.cursed && item.cursedKnown()) {
-				bg.ra = +0.2f;
-				bg.ga = -0.1f;
+				bg.ra = +0.3f;
+				bg.ga = -0.15f;
+				bg.ba = -0.15f;
 			} else if (!item.isIdentified()) {
-				bg.ra = 0.1f;
-				bg.ba = 0.1f;
+				if ((item instanceof EquipableItem || item instanceof Wand) && item.cursedKnown()){
+					bg.ba = +0.3f;
+					bg.ra = -0.1f;
+				} else {
+					bg.ra = +0.35f;
+					bg.ba = +0.35f;
+				}
 			}
 		}
 		

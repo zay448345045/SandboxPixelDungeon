@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.customizables.Customizable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.effects.CellEmitter;
@@ -56,7 +55,7 @@ import com.watabou.utils.Reflection;
 
 import java.util.ArrayList;
 
-public abstract class Plant extends GameObject implements Customizable, Copyable<Plant> {
+public abstract class Plant extends GameObject implements Customizable {
 
     public int image;
     public int pos;
@@ -169,7 +168,9 @@ public abstract class Plant extends GameObject implements Customizable, Copyable
         if (template == null) return;
         if (getClass() != template.getClass()) return;
         Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
         bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
         bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
         int pos = this.pos;

@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@ import com.shatteredpixel.shatteredpixeldungeon.customobjects.ui.TabResourceFile
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.DefaultEditComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.EditorItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
-import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.watabou.noosa.Image;
 import com.watabou.utils.FileUtils;
 
@@ -54,7 +53,7 @@ public class ImageFileItem extends EditorItem<FileHandle> {
 	}
 	
 	@Override
-	public Item getCopy() {
+	public ImageFileItem getCopy() {
 		return new ImageFileItem(obj);
 	}
 	

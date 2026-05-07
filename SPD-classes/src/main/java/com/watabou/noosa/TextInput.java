@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@ import com.badlogic.gdx.Files;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Container;
@@ -103,7 +105,7 @@ public class TextInput extends Component {
 			@Override
 			protected void onClick(PointerEvent event) {
 				super.onClick(event);
-				Gdx.app.postRunnable(() -> Game.platform.setOnscreenKeyboardVisible(true));
+				Gdx.app.postRunnable(() -> Game.platform.setOnscreenKeyboardVisible(true, multiline));
 			}
 			
 			@Override
@@ -128,8 +130,11 @@ public class TextInput extends Component {
 		//use a custom viewport here to ensure stage camera matches game camera
 		Viewport viewport = new Viewport() {};
 		viewport.setWorldSize(Game.width, Game.height);
-		viewport.setScreenBounds(0, Game.bottomInset, Game.width, Game.height);
+		viewport.setScreenBounds(0, 0, Game.width, Game.height);
 		viewport.setCamera(new OrthographicCamera());
+		//TODO this is needed for the moment as Spritebatch switched to using VAOs in libGDX v1.13.1
+		//  This results in HARD crashes atm, whereas old vertex arrays work fine
+		SpriteBatch.overrideVertexType = Mesh.VertexDataType.VertexArray;
 		stage = new Stage(viewport){
 			@Override
 			public boolean keyDown(int keycode) {
@@ -176,14 +181,14 @@ public class TextInput extends Component {
 			
 			@Override
 			public boolean mouseMoved(int screenX, int screenY) {
-				if (isActive() && hasFocus && isInTopWindow() && catchClicks.overlapsScreenPoint(screenX, screenY))
+				if (isActive() && hasFocus() && isInTopWindow() && catchClicks.overlapsScreenPoint(screenX, screenY))
 					return super.mouseMoved(screenX, screenY);
 				return false;
 			}
 			
 			@Override
 			public boolean scrolled(float amountX, float amountY) {
-				if (isActive() && hasFocus && isInTopWindow())
+				if (isActive() && hasFocus() && isInTopWindow())
 					return super.scrolled(amountX, amountY);
 				return false;
 			}
@@ -249,7 +254,7 @@ public class TextInput extends Component {
 		
 		textField.setTextFieldListener((textField, c) -> onKeyTyped(c));
 		
-		textField.setOnscreenKeyboard(visible -> Game.platform.setOnscreenKeyboardVisible(visible));
+		textField.setOnscreenKeyboard(visible -> Game.platform.setOnscreenKeyboardVisible(visible, multiline));
 		
 		container.setActor(textField);
 		stage.setKeyboardFocus(textField);
@@ -321,19 +326,19 @@ public class TextInput extends Component {
 			}
 		}
 	}
-	
+
 	public void enterPressed(){
 		//fires any time enter is pressed, do nothing by default
 	};
-	
+
 	public void onChanged(){
 		//fires any time the text box is changed, do nothing by default
 	}
-	
+
 	public void onClipBoardUpdate(){
 		//fires any time the clipboard is updated via cut or copy, do nothing by default
 	}
-	
+
 	public void setText(String text){
 		if (convertStringToValidString != null) {
 			text = convertStringToValidString.apply(text);
@@ -344,27 +349,27 @@ public class TextInput extends Component {
 			textField.setCursorPosition(textField.getText().length());
 		}
 	}
-	
+
 	public void setMaxLength(int maxLength){
 		textField.setMaxLength(maxLength);
 	}
-	
+
 	public String getText(){
 		return textField.getText();
 	}
-	
+
 	public void copyToClipboard(){
 		if (textField.getSelection().isEmpty()) {
 			textField.selectAll();
 		}
-		
+
 		textField.copy();
 	}
-	
+
 	public void pasteFromClipboard(){
 		String contents = Gdx.app.getClipboard().getContents();
 		if (contents == null) return;
-		
+
 		if (!textField.getSelection().isEmpty()){
 			//just use cut, but override clipboard
 			textField.cut();
@@ -385,7 +390,7 @@ public class TextInput extends Component {
 		textField.setText(existing.substring(0, cursorIdx) + s + existing.substring(cursorIdx));
 		textField.setCursorPosition(cursorIdx + s.length());
 	}
-	
+
 	@Override
 	protected void layout() {
 		super.layout();
@@ -420,14 +425,14 @@ public class TextInput extends Component {
 		float contY = y;
 		float contW = width;
 		float contH = height;
-		
+
 		if (bg != null){
 			contX += bg.marginLeft();
 			contY += bg.marginTop();
 			contW -= bg.marginHor();
 			contH -= bg.marginVer();
 		}
-		
+
 		float zoom = Camera.main.zoom;
 		if (c != null){
 			
@@ -449,7 +454,7 @@ public class TextInput extends Component {
 		} else {
 			lastScrollX = lastScrollY = SCROLL_NOT_SET;
 		}
-		
+
 		container.align(Align.topLeft);
 		container.setPosition(contX*zoom, (Game.height-(contY*zoom)));
 		container.size(contW*zoom, contH*zoom);
@@ -471,7 +476,7 @@ public class TextInput extends Component {
 		stage.act(Game.elapsed);
 		layoutContainer(false);
 	}
-	
+
 	@Override
 	public void draw() {
 		super.draw();
@@ -482,7 +487,7 @@ public class TextInput extends Component {
 		Quad.bindIndices();
 		Blending.useDefault();
 	}
-	
+
 	@Override
 	public synchronized void destroy() {
 		super.destroy();
@@ -490,7 +495,7 @@ public class TextInput extends Component {
 			stage.dispose();
 			skin.dispose();
 			Game.inputHandler.removeInputProcessor(stage);
-			Game.platform.setOnscreenKeyboardVisible(false);
+			Game.platform.setOnscreenKeyboardVisible(false, false);
 			if (!DeviceCompat.isDesktop()) Game.platform.updateSystemUI();
 		}
 		activeTextInputs.remove(this);

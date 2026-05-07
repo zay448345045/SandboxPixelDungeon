@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@ public class RenderedTextBlock extends Component {
 	private int color = -1;
 	private float alpha = 1f;
 	private boolean colorsInverted;
+	private float scale = 1f;
 	
 	private int hightlightColor = Window.TITLE_COLOR;
 	private boolean highlightingEnabled = true;
@@ -156,7 +157,7 @@ public class RenderedTextBlock extends Component {
 				if (highlighting) word.hardlight(hightlightColor);
 				else if (currentMarkingColor != -1) word.hardlight(currentMarkingColor);
 				else if (color != -1) word.hardlight(color);
-				word.scale.set(zoom);
+				word.scale.set(zoom * scale);
 				word.alpha(alpha);
 				
 				words.add(word);
@@ -200,6 +201,13 @@ public class RenderedTextBlock extends Component {
 		this.alpha = value;
 		for (RenderedText word : words) {
 			if (word != null) word.alpha( value );
+		}
+	}
+	
+	public synchronized void setScale(float scale) {
+		this.scale = scale;
+		for (RenderedText word : words) {
+			if (word != null) word.scale.set( zoom * scale );
 		}
 	}
 	
@@ -274,7 +282,8 @@ public class RenderedTextBlock extends Component {
 				if (!"/".equals(word.text()) && !"\\".equals(word.text())) {
 					//this is so that words split only by highlighting are still grouped in layout
 					//Chinese/Japanese always render every character separately without spaces however
-					while (Messages.lang() != Languages.CHINESE && Messages.lang() != Languages.JAPANESE
+					while (Messages.lang() != Languages.CHI_SMPL && Messages.lang() != Languages.CHI_TRAD
+						&& Messages.lang() != Languages.JAPANESE
 							&& j < words.size() && words.get(j) != SPACE && words.get(j) != NEWLINE
 							&& !words.get(j).text().equals("/") && !words.get(j).text().equals("\\")) {
 						fullWidth += words.get(j).width() - 0.667f;

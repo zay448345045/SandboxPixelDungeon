@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,9 @@ package com.shatteredpixel.shatteredpixeldungeon.items.spells;
 
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Invisibility;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.quest.MetalShard;
@@ -39,6 +41,7 @@ import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.Bundle;
+import com.watabou.utils.Function;
 import com.watabou.utils.Reflection;
 
 import java.util.ArrayList;
@@ -53,9 +56,9 @@ public class ReclaimTrap extends TargetedSpell {
 
 	//This class has a variety of code for compat with pre-v3.0.0 saves
 	//Stored traps used to be a property of the item itself, but in 3.0.0 this was changed to be
-	//a buff attached to the hero, which is much more resistant to exploits
+	//a buff attached to the hero, which is much more resistant to exploits, but for Sandbox, it must continue to be an item property
 
-	private Class<?extends Trap> storedTrap = null;
+	public Trap storedTrap = null; // please don't remove @Evan
 	
 	@Override
 	public ArrayList<String> actions(Hero hero) {
@@ -70,7 +73,7 @@ public class ReclaimTrap extends TargetedSpell {
 
 	@Override
 	protected void affectTarget(Ballistica bolt, Hero hero) {
-		Class<?extends Trap> storedTrap = null;
+		Trap storedTrap = null;
 		//pre-v3.0.0
 		if (this.storedTrap != null){
 			storedTrap = this.storedTrap;
@@ -82,27 +85,33 @@ public class ReclaimTrap extends TargetedSpell {
 			}
 		}
 		if (storedTrap == null) {
-			quantity++; //storing a trap doesn't consume the spell
 			Trap t = Dungeon.level.traps.get(bolt.collisionPos);
 			if (t != null && t.active && t.visible) {
 				t.disarm(); //even disarms traps that normally wouldn't be
 				
 				Sample.INSTANCE.play(Assets.Sounds.LIGHTNING);
 				ScrollOfRecharging.charge(hero);
-				Buff.affect(hero, ReclaimedTrap.class).trap = t.getClass();
+				Buff.affect(hero, ReclaimedTrap.class).trap = t;
 				Bestiary.setSeen(t.getClass());
 				
 			} else {
 				GLog.w(Messages.get(this, "no_trap"));
 			}
+
+			//spell is not consumed, so doesn't count as a full use
+			Invisibility.dispel();
+			curUser.spendAndNext( timeToCast() );
+
 		} else {
 			
-			Trap t = Reflection.newInstance(storedTrap);
+			Trap t = storedTrap.getCopy();
 			
 			t.pos = bolt.collisionPos;
 			t.reclaimed = true;
 			Bestiary.countEncounter(t.getClass());
 			t.activate();
+
+			onSpellused();
 			
 		}
 	}
@@ -133,9 +142,9 @@ public class ReclaimTrap extends TargetedSpell {
 	@Override
 	public ItemSprite.Glowing glowing() {
 		if (storedTrap != null){
-			return COLORS[Reflection.newInstance(storedTrap).color];
+			return COLORS[storedTrap.color];
 		} else if (Dungeon.hero != null && Dungeon.hero.belongings.contains(this) && Dungeon.hero.buff(ReclaimedTrap.class) != null){
-			return COLORS[Reflection.newInstance(Dungeon.hero.buff(ReclaimedTrap.class).trap).color];
+			return COLORS[Dungeon.hero.buff(ReclaimedTrap.class).trap.color];
 		}
 		return null;
 	}
@@ -150,7 +159,7 @@ public class ReclaimTrap extends TargetedSpell {
 		return (int)(12 * (quantity/(float)Recipe.OUT_QUANTITY));
 	}
 	
-	private static final String STORED_TRAP = "stored_trap";
+	private static final String STORED_TRAP = "stored_trap_obj";
 	
 	@Override
 	public void storeInBundle(Bundle bundle) {
@@ -161,7 +170,17 @@ public class ReclaimTrap extends TargetedSpell {
 	@Override
 	public void restoreFromBundle(Bundle bundle) {
 		super.restoreFromBundle(bundle);
-		if (bundle.contains(STORED_TRAP)) storedTrap = bundle.getClass(STORED_TRAP);
+		if (bundle.contains("stored_trap")) {
+			storedTrap = (Trap) Reflection.newInstance(bundle.getClass("stored_trap"));
+		} else {
+			storedTrap = (Trap) bundle.get(STORED_TRAP);
+		}
+	}
+	
+	@Override
+	public boolean doOnAllGameObjects(Function<GameObject, ModifyResult> whatToDo) {
+		return super.doOnAllGameObjects(whatToDo)
+				| doOnSingleObject(storedTrap, whatToDo, newValue -> storedTrap = newValue);
 	}
 	
 	public static class Recipe extends com.shatteredpixel.shatteredpixeldungeon.items.Recipe.SimpleRecipe {
@@ -191,20 +210,24 @@ public class ReclaimTrap extends TargetedSpell {
 			revivePersists = true;
 		}
 
-		private Class<?extends Trap> trap;
+		private Trap trap;
 
-		private static final String TRAP = "trap";
+		private static final String TRAP = "trap_obj";
 
 		@Override
 		public void storeInBundle(Bundle bundle) {
 			super.storeInBundle(bundle);
-			bundle.put(TRAP, trap);
+			if (trap != null) bundle.put(TRAP, trap);
 		}
 
 		@Override
 		public void restoreFromBundle(Bundle bundle) {
 			super.restoreFromBundle(bundle);
-			trap = bundle.getClass(TRAP);
+			if (bundle.contains("trap")) {
+				trap = (Trap) Reflection.newInstance(bundle.getClass("trap"));
+			} else {
+				trap = (Trap) bundle.get(TRAP);
+			}
 		}
 	}
 	

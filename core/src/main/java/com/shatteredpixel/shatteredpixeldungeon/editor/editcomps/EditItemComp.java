@@ -6,6 +6,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObjectManager;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
 import com.shatteredpixel.shatteredpixeldungeon.editor.EditorScene;
+import com.shatteredpixel.shatteredpixeldungeon.editor.TileSprite;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.ReorderHeapComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.customizables.ChangeCustomizable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.customizables.ChangeItemCustomizable;
@@ -18,6 +19,8 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.items.Wnd
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.transitions.ChooseDestLevelComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Items;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Mobs;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.Traps;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.EditorItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.ItemItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.MobItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.TrapItem;
@@ -46,9 +49,12 @@ import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
 import com.shatteredpixel.shatteredpixeldungeon.items.Gold;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.items.RechargeRule;
+import com.shatteredpixel.shatteredpixeldungeon.items.Waterskin;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.Armor;
 import com.shatteredpixel.shatteredpixeldungeon.items.armor.ClassArmor;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.Artifact;
+import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.ChaliceOfBlood;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.Bag;
 import com.shatteredpixel.shatteredpixeldungeon.items.bombs.Bomb;
 import com.shatteredpixel.shatteredpixeldungeon.items.bombs.FakeTenguShocker;
@@ -57,14 +63,19 @@ import com.shatteredpixel.shatteredpixeldungeon.items.keys.CrystalKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.keys.GoldenKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.keys.IronKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.keys.Key;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.SkeletonKey;
+import com.shatteredpixel.shatteredpixeldungeon.items.keys.WornKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.Potion;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.brews.PotionCocktail;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.exotic.PotionOfDivineInspiration;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.exotic.PotionOfMastery;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.exotic.ScrollOfEnchantment;
+import com.shatteredpixel.shatteredpixeldungeon.items.spells.ReclaimTrap;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.Trinket;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.TrinketCatalyst;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.Wand;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfRegrowth;
 import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfSummoning;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.enchantments.Corrupting;
@@ -72,6 +83,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MagesStaff;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.missiles.MissileWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Document;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
+import com.shatteredpixel.shatteredpixeldungeon.levels.traps.Trap;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.CellSelector;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
@@ -107,7 +119,7 @@ public class EditItemComp extends DefaultEditComp<Item> {
     protected StyledCheckBox permaCursed;
     protected LevelSpinner levelSpinner;
     protected ChargeSpinner chargeSpinner;
-    protected SpinnerLikeButton wandRecharging;
+    protected SpinnerLikeButton rechargingRule;
     protected DurabilitySpinner durabilitySpinner;
     protected StyledItemSelector magesStaffWand;
     protected StyledCheckBox hasSeal;
@@ -118,12 +130,17 @@ public class EditItemComp extends DefaultEditComp<Item> {
     protected StyledCheckBox spreadIfLoot;
     protected StyledCheckBox exactItemInRecipe;
     protected StyledCheckBox blessed;
+    protected StyledCheckBox onlyFurrowedGrass;
     protected StyledCheckBox igniteBombOnDrop;
     protected StyledSpinner shockerDuration;
+    protected StyledItemSelector reclaimTrap;
+    protected StyledSpinner volume;
     protected AugmentationSpinner augmentationSpinner;
     protected StyledButton enchantBtn;
     protected StyledSpinner numChoosableTrinkets;
     protected ItemContainer<Trinket> rollTrinkets;
+    protected ItemContainer<Potion> potionCocktailPotions;
+    protected StyledCheckBox potionsKnown;
     protected ItemContainer<MobItem> summonMobs;
     protected StyledSpinner docPageType;
     protected StringInputComp docPageText, docPageTitle;
@@ -214,9 +231,8 @@ public class EditItemComp extends DefaultEditComp<Item> {
         showOnlyCheckType = false;
 
         if (!(item instanceof RandomItem)) {
-            if (!(item instanceof MissileWeapon) && (item instanceof Weapon || item instanceof Armor || item instanceof Ring || item instanceof Artifact || item instanceof Wand)) {
-
-
+            if (item instanceof Weapon || item instanceof Armor || item instanceof Ring || item instanceof Artifact || item instanceof Wand) {
+                
                 permaCursed = new StyledCheckBox(label("perma_curse"));
                 permaCursed.checked(item.permaCurse);
                 permaCursed.addChangeListener(v -> item.permaCurse = v);
@@ -260,6 +276,34 @@ public class EditItemComp extends DefaultEditComp<Item> {
                 };
                 add(rollTrinkets);
             }
+            
+            if (item instanceof PotionCocktail) {
+                
+                potionsKnown = new StyledCheckBox(label("show_potions"));
+                potionsKnown.checked(((PotionCocktail) item).potionsKnown);
+                potionsKnown.addChangeListener( v -> {
+                    ((PotionCocktail) item).potionsKnown = v;
+                    updateObj();
+                });
+                potionsKnown.icon(Icons.MAGNIFY.get());
+                add(potionsKnown);
+                
+                potionCocktailPotions = new ItemContainerWithLabel<Potion>(((PotionCocktail) item).potions, this, Messages.get(Items.class, "potion")) {
+                    
+                    @Override
+                    protected void onSlotNumChange() {
+                        if (potionCocktailPotions != null) {
+                            updateObj();
+                        }
+                    }
+                    
+                    @Override
+                    public boolean itemSelectable(Item item) {
+                        return item instanceof Potion && !(item instanceof PotionCocktail || item instanceof PotionOfDivineInspiration || item instanceof PotionOfMastery);
+                    }
+                };
+                add(potionCocktailPotions);
+            }
 
             if (item instanceof Wand) {//Check ItemItem#status() if you change sth
                 Wand w = (Wand) item;
@@ -270,17 +314,26 @@ public class EditItemComp extends DefaultEditComp<Item> {
                     }
                 };
 
-                wandRecharging = new SpinnerLikeButton(new SpinnerEnumModel<>(Wand.RechargeRule.class, w.rechargeRule, v -> w.rechargeRule = v),
+                rechargingRule = new SpinnerLikeButton(new SpinnerEnumModel<>(RechargeRule.class, w.rechargeRule, v -> w.rechargeRule = v),
                         label("charging_rule"));
-                add(wandRecharging);
+                add(rechargingRule);
 
-            } else if (item instanceof Artifact && ((Artifact) item).chargeCap() > 0) {//Check ItemItem#status() if you change sth
-                chargeSpinner = new ChargeSpinner((Artifact) item) {
-                    @Override
-                    protected void onChange() {
-                        updateObj();
-                    }
-                };
+            } else if (item instanceof Artifact) {//Check ItemItem#status() if you change sth
+                Artifact a = (Artifact) item;
+                if (a.chargeCap() > 0) {
+                    chargeSpinner = new ChargeSpinner(a) {
+                        @Override
+                        protected void onChange() {
+                            updateObj();
+                        }
+                    };
+                }
+                
+                if (!(a instanceof ChaliceOfBlood)) {
+                    rechargingRule = new SpinnerLikeButton(new SpinnerEnumModel<>(RechargeRule.class, a.rechargeRule, v -> a.rechargeRule = v),
+                            label("charging_rule"));
+                    add(rechargingRule);
+                }
             }
             if (chargeSpinner != null) add(chargeSpinner);
 
@@ -306,7 +359,7 @@ public class EditItemComp extends DefaultEditComp<Item> {
             hideLevelSpinner = false;
 
             if (item instanceof Potion || item instanceof Scroll || item instanceof Ring || item instanceof Wand || item instanceof Artifact
-                    || (item instanceof Weapon && !(item instanceof MissileWeapon))
+                    || (item instanceof Weapon)
                     || (item instanceof Armor && !(item instanceof ClassArmor))) {
 //      if (!DefaultStatsCache.getDefaultObject(item.getClass()).isIdentified()) { // always returns true while editing
                 autoIdentify = new StyledCheckBox(label("auto_identify"));
@@ -448,6 +501,17 @@ public class EditItemComp extends DefaultEditComp<Item> {
                 });
                 add(blessed);
             }
+            
+            if (item instanceof WandOfRegrowth) {
+                onlyFurrowedGrass = new StyledCheckBox(label("only_furrowed_grass"));
+                onlyFurrowedGrass.icon(new TileSprite(Terrain.FURROWED_GRASS));
+                onlyFurrowedGrass.checked(((WandOfRegrowth) item).onlySpawnFurrowedGrass);
+                onlyFurrowedGrass.addChangeListener(v -> {
+                    ((WandOfRegrowth) item).onlySpawnFurrowedGrass = v;
+                    updateObj();
+                });
+                add(onlyFurrowedGrass);
+            }
 
             if (item instanceof Bomb) {
                 igniteBombOnDrop = new StyledCheckBox(label("ignite_bomb_on_drop"));
@@ -459,7 +523,42 @@ public class EditItemComp extends DefaultEditComp<Item> {
                 });
                 add(igniteBombOnDrop);
             }
-
+            
+            if (item instanceof ReclaimTrap) {
+                Trap storedTrap = ((ReclaimTrap) item).storedTrap;
+                reclaimTrap = new StyledItemSelector(label("reclaim_trap"), TrapItem.class, storedTrap == null ? EditorItem.NULL_ITEM : new TrapItem(storedTrap), ItemSelector.NullTypeSelector.NOTHING) {
+                    
+                    {
+                        selector.preferredBag = Traps.bag().getClass();
+                    }
+                    
+                    @Override
+                    public void setSelectedItem(Item selectedItem) {
+                        super.setSelectedItem(selectedItem);
+                        if (selectedItem instanceof EditorItem.NullItemClass || selectedItem == null) ((ReclaimTrap) item).storedTrap = null;
+                        else ((ReclaimTrap) item).storedTrap = ((TrapItem) selectedItem).getObject();
+                        updateObj();
+                    }
+                    
+                    @Override
+                    public void change() {
+                        EditorScene.selectItem(selector);
+                    }
+                };
+                reclaimTrap.setShowWhenNull(ItemSpriteSheet.NO_ITEM);
+                add(reclaimTrap);
+            }
+            
+            if (item instanceof Waterskin) {
+                volume = new StyledSpinner(new SpinnerIntegerModel(0, ((Waterskin) item).maxVolume(), ((Waterskin) item).volume), label("volume"));
+                ((SpinnerIntegerModel) volume.getModel()).setAbsoluteMaximum(2_000_000_000f);
+                volume.addChangeListener(() -> {
+                    ((Waterskin) item).volume = (int) volume.getValue();
+                    updateObj();
+                });
+                add(volume);
+            }
+            
             if (item instanceof FakeTenguShocker) {
                 shockerDuration = new StyledSpinner(new SpinnerIntegerModel(1, 100, ((FakeTenguShocker) item).duration),
                         label("duration"));
@@ -482,7 +581,7 @@ public class EditItemComp extends DefaultEditComp<Item> {
 
                     @Override
                     protected void doAddItem(MobItem mobItem) {
-                        mobItem = (MobItem) mobItem.getCopy();
+                        mobItem = mobItem.getCopy();
                         super.doAddItem(mobItem);
                         ((WandOfSummoning) item).summonTemplate.add(mobItem.mob());
                         ((WandOfSummoning) item).nextSummon = null;
@@ -647,13 +746,13 @@ public class EditItemComp extends DefaultEditComp<Item> {
         } else {
             rename.setVisible(false);
             randomItem = new Component() {
-                private RandomItemDistrComp distr = new RandomItemDistrComp((RandomItem<?>) item) {
+                private final RandomItemDistrComp distr = new RandomItemDistrComp((RandomItem<?>) item) {
                     @Override
                     protected void updateParent() {
                         updateObj();
                     }
                 };
-                private Component outsideSp = distr.getOutsideSp();
+                private final Component outsideSp = distr.getOutsideSp();
 
                 {
                     add(distr);
@@ -670,9 +769,9 @@ public class EditItemComp extends DefaultEditComp<Item> {
             add(randomItem);
         }
 
-        rectComps = new Component[]{quantity, quickslotPos, numChoosableTrinkets, shockerDuration, chargeSpinner, wandRecharging, levelSpinner, durabilitySpinner,
-                augmentationSpinner, curseBtn, permaCursed, cursedKnown, autoIdentify, enchantBtn, magesStaffWand, hasSeal, classArmorTier, blessed, igniteBombOnDrop, docPageType, spreadIfLoot, exactItemInRecipe};
-        linearComps = new Component[]{rollTrinkets, summonMobs, docPageTitle, docPageText, bagItems, randomItem, keylevel, keyCell};
+        rectComps = new Component[]{quantity, quickslotPos, numChoosableTrinkets, shockerDuration, potionsKnown, reclaimTrap, volume, chargeSpinner, rechargingRule, levelSpinner, durabilitySpinner,
+                augmentationSpinner, curseBtn, permaCursed, cursedKnown, autoIdentify, enchantBtn, magesStaffWand, hasSeal, classArmorTier, onlyFurrowedGrass, blessed, igniteBombOnDrop, docPageType, spreadIfLoot, exactItemInRecipe};
+        linearComps = new Component[]{rollTrinkets, potionCocktailPotions, summonMobs, docPageTitle, docPageText, bagItems, randomItem, keylevel, keyCell};
 
         initializeCompsForCustomObjectClass();
     }
@@ -801,7 +900,7 @@ public class EditItemComp extends DefaultEditComp<Item> {
         if (curseBtn != null)               curseBtn.checked(obj.cursed);
         if (levelSpinner != null)           levelSpinner.setValue(obj.level());
         if (chargeSpinner != null)          chargeSpinner.updateValue(obj);
-        if (wandRecharging != null)         wandRecharging.setValue(((Wand) obj).rechargeRule);
+        if (rechargingRule != null)         rechargingRule.setValue( obj instanceof Wand ? ((Wand) obj).rechargeRule : ((Artifact) obj).rechargeRule );
         if (durabilitySpinner != null)      durabilitySpinner.updateValue(obj);
         if (augmentationSpinner != null)    augmentationSpinner.updateValue(obj);
         if (classArmorTier != null)         classArmorTier.setValue(((ClassArmor) obj).tier);
@@ -813,7 +912,10 @@ public class EditItemComp extends DefaultEditComp<Item> {
         if (magesStaffWand != null)         magesStaffWand.setSelectedItem(((MagesStaff) obj).wand);
         if (hasSeal != null)                hasSeal.checked(((Armor) obj).checkSeal() != null);
         if (blessed != null)                blessed.checked(((Ankh) obj).blessed);
+        if (onlyFurrowedGrass != null)      onlyFurrowedGrass.checked(((WandOfRegrowth) obj).onlySpawnFurrowedGrass);
         if (igniteBombOnDrop != null)       igniteBombOnDrop.checked(((Bomb) obj).igniteOnDrop);
+        if (volume != null)                 volume.setValue(((Waterskin) obj).volume);
+        if (potionsKnown != null)           potionsKnown.checked(((PotionCocktail)obj).potionsKnown);
         if (shockerDuration != null)        shockerDuration.setValue(((FakeTenguShocker) obj).duration);
         if (docPageType != null)            docPageType.setValue(CustomDocumentPage.types.get(((CustomDocumentPage) obj).type));
         if (docPageText != null)            docPageText.setText(((CustomDocumentPage) obj).text);
@@ -828,6 +930,7 @@ public class EditItemComp extends DefaultEditComp<Item> {
 
         if (bagItems != null) bagItems.setItemList(((Bag)obj).items);
         if (rollTrinkets != null) rollTrinkets.setItemList(((TrinketCatalyst)obj).rolledTrinkets);
+        if (potionCocktailPotions != null) potionCocktailPotions.setItemList(((PotionCocktail)obj).potions);
         if (summonMobs != null) {
             List<MobItem> asMobItems = new ArrayList<>();
             if (((WandOfSummoning) obj).summonTemplate != null) {
@@ -848,10 +951,9 @@ public class EditItemComp extends DefaultEditComp<Item> {
                 boolean validPos;
                 Heap h = Dungeon.level.heaps.get(cell);
                 if (key instanceof GoldenKey) validPos = h != null && h.type == Heap.Type.LOCKED_CHEST;
-                else if (key instanceof CrystalKey)
-                    validPos = Dungeon.level.map[cell] == Terrain.CRYSTAL_DOOR || h != null && h.type == Heap.Type.CRYSTAL_CHEST;
+                else if (key instanceof CrystalKey) validPos = Dungeon.level.map[cell] == Terrain.CRYSTAL_DOOR || h != null && h.type == Heap.Type.CRYSTAL_CHEST;
                 else if (key instanceof IronKey) validPos = Dungeon.level.map[cell] == Terrain.LOCKED_DOOR;
-                else if (key instanceof SkeletonKey) validPos = Dungeon.level.map[cell] == Terrain.LOCKED_EXIT;
+                else if (key instanceof WornKey) validPos = Dungeon.level.map[cell] == Terrain.LOCKED_EXIT;
                 else validPos = false;
 
                 if (!validPos) key.cell = -1;
@@ -921,12 +1023,18 @@ public class EditItemComp extends DefaultEditComp<Item> {
         if (a instanceof Wand) {
             if (((Wand) a).curCharges != ((Wand) b).curCharges) return false;
             if (((Wand) a).rechargeRule != ((Wand) b).rechargeRule) return false;
+            if (a instanceof WandOfRegrowth) {
+                if (((WandOfRegrowth) a).onlySpawnFurrowedGrass != ((WandOfRegrowth) b).onlySpawnFurrowedGrass) return false;
+            }
         }
         if (a instanceof MagesStaff) {
-            if (areEqual(((MagesStaff) a).wand, ((MagesStaff) b).wand)) return false;
+            if (!areEqual(((MagesStaff) a).wand, ((MagesStaff) b).wand)) return false;
         }
         if (a instanceof WandOfSummoning) {
             if (!EditMobComp.isMobListEqual(((WandOfSummoning) a).summonTemplate, ((WandOfSummoning) b).summonTemplate)) return false;
+        }
+        if (a instanceof Artifact) {
+            if (((Artifact) a).rechargeRule != ((Artifact) b).rechargeRule) return false;
         }
         if (a instanceof Key) {
             if (!((Key) a).levelName.equals(((Key) b).levelName)) return false;
@@ -937,6 +1045,15 @@ public class EditItemComp extends DefaultEditComp<Item> {
         }
         if (a instanceof Bomb) {
             if (((Bomb) a).igniteOnDrop != ((Bomb) b).igniteOnDrop) return false;
+        }
+        if (a instanceof PotionCocktail) {
+            if (!isItemListEqual(((PotionCocktail) a).potions, ((PotionCocktail) b).potions)) return false;
+        }
+        if (a instanceof ReclaimTrap) {
+            if (!EditTrapComp.areEqual(((ReclaimTrap) a).storedTrap, ((ReclaimTrap) b).storedTrap)) return false;
+        }
+        if (a instanceof Waterskin) {
+            if (((Waterskin) a).volume != ((Waterskin) b).volume) return false;
         }
         if (a instanceof Bag) {
             if (!isItemListEqual(((Bag) a).items, ((Bag) b).items)) return false;
@@ -953,14 +1070,14 @@ public class EditItemComp extends DefaultEditComp<Item> {
             if (!isItemListEqual(((TrinketCatalyst) a).rolledTrinkets, ((TrinketCatalyst) b).rolledTrinkets)) return false;
         }
         if (a instanceof RandomItem) {
-            if (!a.equals(b)) return false;
+            if (!RandomItem.areEqual((RandomItem<?>) a, (RandomItem<?>) b)) return false;
         }
 
         if (a instanceof MobItem) return EditMobComp.areEqual(((MobItem) a).getObject(), ((MobItem) b).getObject());
         if (a instanceof TrapItem) return EditTrapComp.areEqual(((TrapItem) a).getObject(), ((TrapItem) b).getObject());
 		
 		if (a instanceof CustomGameObjectClass) {
-			if (((CustomGameObjectClass) a).getInheritStats() != ((CustomGameObjectClass) b).getInheritStats()) return false;
+			return ((CustomGameObjectClass) a).getInheritStats() == ((CustomGameObjectClass) b).getInheritStats();
 		}
 
         return true;

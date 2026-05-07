@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,12 +125,9 @@ public class Ghoul extends Mob {
 			
 			if (!candidates.isEmpty()){
 				Ghoul child = new Ghoul();
-				child.spriteClass = spriteClass;
-				child.customDesc = customDesc;
-				child.customName = customName;
+				child.copyStats(this);
 				child.partnerID = this.id();
 				this.partnerID = child.id();
-				child.setPlayerAlignment(playerAlignment);
 				if (state != SLEEPING) {
 					child.state = child.WANDERING;
 				}
@@ -305,6 +302,9 @@ public class Ghoul extends Mob {
 				Dungeon.level.occupyCell( ghoul );
 				ghoul.sprite.idle();
 				ghoul.sprite.showStatusWithIcon(CharSprite.POSITIVE, Integer.toString(hpGained), FloatingText.HEALING);
+				if (ghoul.enemy != null && ghoul.enemy.alignment == ghoul.alignment){
+					ghoul.enemy = null; //reset enemy
+				}
 				super.detach();
 				return true;
 			}
@@ -359,8 +359,10 @@ public class Ghoul extends Mob {
 		public void restoreFromBundle(Bundle bundle) {
 			super.restoreFromBundle(bundle);
 			ghoul = (Ghoul) bundle.get(GHOUL);
-			ghoul.beingLifeLinked = true;
-			turnsToRevive = bundle.getInt(LEFT);
+			if (ghoul != null) {
+				ghoul.beingLifeLinked = true;
+				turnsToRevive = bundle.getInt(LEFT);
+			}
 		}
 
 		public static Ghoul searchForHost(Ghoul dieing){

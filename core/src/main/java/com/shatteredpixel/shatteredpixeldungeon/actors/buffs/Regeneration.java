@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.ChaliceOfBlood;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.RingOfEnergy;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.ChaoticCenser;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.SaltCube;
+import com.shatteredpixel.shatteredpixeldungeon.levels.VaultLevel;
 import com.watabou.utils.Bundle;
 
 public class Regeneration extends Buff {
@@ -79,16 +80,21 @@ public class Regeneration extends Buff {
 						delay /= RingOfEnergy.artifactChargeMultiplier(target);
 					}
 				}
-				delay /= SaltCube.healthRegenMultiplier(hero);
+
+				//salt cube is turned off while regen is disabled.
+				if (target.buff(LockedFloor.class) == null) {
+					delay /= SaltCube.healthRegenMultiplier(hero);
+				}
 				delay /= Dungeon.curLvlScheme().naturalRegenSpeed;
 
 				partialRegen += 1f / delay;
 
 				if (partialRegen >= 1) {
-					target.HP += 1;
-					partialRegen--;
-					if (target.HP == regencap() && hero == Dungeon.hero) {
-						hero.resting = false;
+					target.HP += (int)partialRegen;
+					partialRegen -= (int)partialRegen;
+					if (target.HP >= regencap()) {
+						target.HP = regencap();
+						if (hero == Dungeon.hero) hero.resting = false;
 					}
 				}
 
@@ -112,6 +118,9 @@ public class Regeneration extends Buff {
 	public static boolean regenOn(){
 		LockedFloor lock = Dungeon.hero.buff(LockedFloor.class);
 		if (lock != null && !lock.regenOn()){
+			return false;
+		}
+		if (Dungeon.level instanceof VaultLevel){
 			return false;
 		}
 		return true;

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.FlavourBuff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Regeneration;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.HeroMob;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.effects.MagicMissile;
 import com.shatteredpixel.shatteredpixeldungeon.effects.Speck;
 import com.shatteredpixel.shatteredpixeldungeon.effects.TargetedCell;
@@ -109,15 +110,19 @@ public class ChaoticCenser extends Trinket {
 
 			if (left <= 0) {
 
-				if (TargetHealthIndicator.instance != null && TargetHealthIndicator.instance.isVisible()
-						&& TargetHealthIndicator.instance.target() != null
-						&& TargetHealthIndicator.instance.target().alignment == Char.Alignment.ENEMY
-						&& TargetHealthIndicator.instance.target().isAlive()) {
+				if (TargetHealthIndicator.instance != null && TargetHealthIndicator.instance.isVisible()){
+					Char target = TargetHealthIndicator.instance.target();
 
-					if (produceGas(TargetHealthIndicator.instance.target())){
-						Sample.INSTANCE.play(Assets.Sounds.GAS, 0.5f);
-						hero.interrupt();
-						left += Random.IntRange((int) (avgTurns * 0.9f), (int) (avgTurns * 1.1f));
+					if (target != null
+							&& target.isActive()
+							&& target.alignment == Char.Alignment.ENEMY
+							&& (!(target instanceof Mob) || ((Mob) target).state != ((Mob) target).PASSIVE)){
+
+						if (produceGas(target)){
+							Sample.INSTANCE.play(Assets.Sounds.GAS, 0.5f);
+							hero.interrupt();
+							left += Random.IntRange((int) (avgTurns * 0.9f), (int) (avgTurns * 1.1f));
+						}
 					}
 				}
 
@@ -220,7 +225,9 @@ public class ChaoticCenser extends Trinket {
 			if (targetCell != null) {
 				Buff.affect(Dungeon.hero, GasSpewer.class, Dungeon.hero.cooldown()).set(targetCell, gasToSpawn, (int)gasQuantity);
 				GLog.w(Messages.get(ChaoticCenser.class, "spew", Messages.titleCase(Messages.get(gasToSpawn, "name")) ));
-				target.sprite.parent.addToBack(new TargetedCell(targetCell, 0xFF0000));
+				if (target.sprite != null && target.sprite.parent != null) {
+					target.sprite.parent.addToBack(new TargetedCell(targetCell, 0xFF0000));
+				}
 				return true;
 			}
 		}

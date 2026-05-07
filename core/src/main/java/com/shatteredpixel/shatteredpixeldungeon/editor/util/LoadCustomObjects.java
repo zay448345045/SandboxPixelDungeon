@@ -4,10 +4,10 @@
  *  * Copyright (C) 2012-2015 Oleg Dolya
  *  *
  *  * Shattered Pixel Dungeon
- *  * Copyright (C) 2014-2024 Evan Debenham
+ *  * Copyright (C) 2014-2025 Evan Debenham
  *  *
  *  * Sandbox Pixel Dungeon
- *  * Copyright (C) 2023-2024 AlphaDraxonis
+ *  * Copyright (C) 2023-2025 AlphaDraxonis
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@ import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObject;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObjectManager;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.ResourcePath;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
-import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
-import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
 import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.utils.Bundle;
@@ -64,7 +62,10 @@ public class LoadCustomObjects {
 		this.onlyLoadResourceFiles = onlyLoadResourceFiles;
 		
 		CustomObjectManager.allResourcePaths.clear();
-		CustomObjectManager.allUserContents.clear();
+		
+		if (!onlyLoadResourceFiles) {
+			CustomObjectManager.allUserContents.clear();
+		}
 		
 		if (bundle != null) {
 			CustomObjectManager.restorePre_v_1_3(bundle, curDungeon);
@@ -134,11 +135,12 @@ public class LoadCustomObjects {
 	}
 	
 	protected synchronized void decreaseOpenResponses(CustomObject customObject) {
-		openResponses--;
 		
 		if (customObject != null) {
 			CustomObjectManager.allUserContents.put(customObject.getIdentifier(), customObject);
 		}
+		
+		openResponses--;
 		
 		if (allExecutorsStarted && openResponses <= 0) {
 			latch.countDown();
@@ -153,7 +155,7 @@ public class LoadCustomObjects {
 			}
 			b.deleteCharAt(b.length()-1);
 			
-			DungeonScene.show(new WndError(b.toString()){{setHighlightingEnabled(false);}});
+//			DungeonScene.show(new WndError(b.toString()){{setHighlightingEnabled(false);}});//tzz
 		}
 		
 		for (CustomObject obj : new HashSet<>(CustomObjectManager.allUserContents.values())) {

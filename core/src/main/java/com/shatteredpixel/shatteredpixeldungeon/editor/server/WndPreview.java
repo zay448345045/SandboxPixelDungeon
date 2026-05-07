@@ -1,25 +1,34 @@
 package com.shatteredpixel.shatteredpixeldungeon.editor.server;
 
-import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.badlogic.gdx.Gdx;
 import com.shatteredpixel.shatteredpixeldungeon.GamesInProgress;
-import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.customobjects.ui.TabResourceFiles;
+import com.shatteredpixel.shatteredpixeldungeon.editor.OpenDungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.editor.ui.PopupMenu;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
-import com.shatteredpixel.shatteredpixeldungeon.scenes.HeroSelectScene;
+import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
-import com.shatteredpixel.shatteredpixeldungeon.scenes.StartScene;
 import com.shatteredpixel.shatteredpixeldungeon.services.server.DungeonPreview;
 import com.shatteredpixel.shatteredpixeldungeon.services.server.ServerCommunication;
-import com.shatteredpixel.shatteredpixeldungeon.ui.*;
-import com.shatteredpixel.shatteredpixeldungeon.windows.*;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Button;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
+import com.shatteredpixel.shatteredpixeldungeon.ui.RedButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndChooseSubclass;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndGameInProgress;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndMessage;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndSupportPrompt;
 import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.ui.Component;
 import com.watabou.utils.FileUtils;
 
-import java.io.IOException;
 import java.util.List;
 
 @NotAllowedInLua
@@ -29,9 +38,13 @@ public class WndPreview extends Component {
     private final ServerDungeonList serverDungeonList;
 
     protected RenderedTextBlock desc, difficulty, creator, time, version;
+    protected Button btnCopyDesc;
 
-    protected RedButton download;
-    protected IconButton delete, edit;
+    protected Component outsideSp;
+    protected RedButton btnDownload;
+    protected RedButton btnOpenPopupMenu;
+    
+    protected TabResourceFiles.FilePathListItem[] images;
 
     public WndPreview(DungeonPreview preview, ServerDungeonList dungeonList) {
         this.preview = preview;
@@ -39,6 +52,15 @@ public class WndPreview extends Component {
 
         desc = PixelScene.renderTextBlock(preview.description, 7);
         add(desc);
+        btnCopyDesc = new Button() {
+            @Override
+            protected boolean onLongClick() {
+                String content = preview.title + "\n\n" + preview.description;
+                Gdx.app.getClipboard().setContents(content);
+                return true;
+            }
+        };
+        add(btnCopyDesc);
 
         creator = PixelScene.renderTextBlock(Messages.get(WndPreview.class, "creator") + ": _" + preview.uploader + "_", 6);
         add(creator);
@@ -56,87 +78,73 @@ public class WndPreview extends Component {
 
         version = PixelScene.renderTextBlock(Messages.get(WndPreview.class, "version") + " " + preview.version, 6);
         add(version);
-
-        download = new RedButton(Messages.get(WndPreview.class, "download")) {
-            @Override
-            protected void onClick() {
-                List<CustomDungeonSaves.Info> allInfos = CustomDungeonSaves.getAllInfos();
-                if (allInfos == null) return;
-
-                String name = preview.title;
-                if (CustomDungeon.illegalNameEnding(name)) name += " ";
-                name = name.replace(' ', '_');
-                for (CustomDungeonSaves.Info info : allInfos) {
-                    if (name.equals(info.name.replace(' ', '_'))) {
-                        confirmOverride();
-                        return;
-                    }
-                }
-
-                startDownload();
-            }
-        };
-        download.icon(Icons.DOWNLOAD.get());
-        add(download);
-
-        edit = new IconButton(Icons.EDIT.get()) {
-            @Override
-            protected void onClick() {
-                checkOwnership(() -> {
-                    serverDungeonList.closeCurrentSubMenu();
-                    UploadDungeon uploadDungeon = new UploadDungeon(null, ServerCommunication.UploadType.CHANGE, preview.description, preview, () -> updatePreview(), () -> {
-                        updatePreview();
-                        return true;
-                    });
-                    serverDungeonList.changeContent(uploadDungeon.createTitle(), uploadDungeon, uploadDungeon.getOutsideSp());
-                });
-            }
-
-            @Override
-            protected String hoverText() {
-                return Messages.get(WndPreview.class, "edit");
-            }
-        };
-        add(edit);
-
-        delete = new IconButton(Icons.TRASH.get()) {
-            @Override
-            protected void onClick() {
-                checkOwnership(() -> Game.scene().addToFront(new WndOptions(Icons.get(Icons.WARNING),
-                        Messages.get(WndPreview.class, "delete_title"),
-                        Messages.get(WndPreview.class, "delete_body"),
-                        Messages.get(WndGameInProgress.class, "erase_warn_yes"),
-                        Messages.get(WndGameInProgress.class, "erase_warn_no")) {
+        
+        if (preview.previewImageFileIDs != null) {
+            images = new TabResourceFiles.FilePathListItem[preview.previewImageFileIDs.length];
+            for (int i = 0; i < images.length; i++) {
+                final int index = i;
+                images[index] = new TabResourceFiles.FilePathListItem("Lädt…", null) {
                     @Override
-                    protected void onSelect(int index) {
-                        if (index == 0) {
-                            ServerCommunication.deleteDungeon(preview.dungeonFileID, preview.title, new ServerCommunication.UploadCallback() {
-                                @Override
-                                protected void onSuccessful(String dungeonFileID) {
-                                    preview.description =
-                                            preview.uploader =
-                                                    preview.title = Messages.get(ServerCommunication.class, "deleted");
-                                    preview.version = "n/a";
-                                    preview.dungeonFileID = "";
-                                    preview.uploadTime = 0;
-                                    Game.runOnRenderThread(() -> {
-                                        ServerDungeonList.updatePage();
-                                        serverDungeonList.closeCurrentSubMenu();
-                                        Game.scene().addToFront(new WndMessage(Messages.get(WndPreview.class, "delete_successful")));
-                                    });
-                                }
-                            });
-                        }
+                    protected void onClick() {
+                        if (file != null) TabResourceFiles.viewResource(path, file);
                     }
-                }));
+                };
+                preview.getPreviewImage(index, file -> {
+                    Game.runOnRenderThread(() -> {
+                        if (!images[index].isDestroyed()) images[index].set(Messages.format("Vorschaubild %d", index+1), file);
+                    });
+                });
+                add(images[index]);
             }
+        }
+        
 
+        btnDownload = new RedButton(Messages.get(WndPreview.class, "download")) {
             @Override
-            protected String hoverText() {
-                return Messages.get(WndPreview.class, "delete");
+            protected void onClick() {
+                userRequestsDownload(preview, preview.mostRecentDungeon);
             }
         };
-        add(delete);
+        btnDownload.icon(Icons.DOWNLOAD.get());
+        
+        btnOpenPopupMenu = new RedButton("") {
+            
+            @Override
+            protected void onClick() {
+                DungeonScene.show(new OutsideSpMenuPopup(
+                        (int) ((x + btnOpenPopupMenu.width() + 2 - camera().width / 2f)),
+                        (int) (y - camera().height / 2f) - 3));
+            }
+            
+            @Override
+            protected String hoverText() {
+                return Messages.get(WndPreview.class, "manage");
+            }
+        };
+        btnOpenPopupMenu.icon(Icons.MENU.get());
+        
+        outsideSp = new Component() {
+            {
+                add(btnDownload);
+                add(btnOpenPopupMenu);
+            }
+            
+            private static final int HEIGHT = 16;
+            
+            @Override
+            protected void layout() {
+                
+                if (PixelScene.landscape()) {
+                    btnDownload.setRect(x + width / 5, y, width * 3 / 5, HEIGHT);
+                    btnOpenPopupMenu.setRect(x + width - HEIGHT, y, HEIGHT, HEIGHT);
+                } else {
+                    btnDownload.setRect(x, y, width - HEIGHT - 2, HEIGHT);
+                    btnOpenPopupMenu.setRect(x + width - HEIGHT, y, HEIGHT, HEIGHT);
+                }
+                
+                height = HEIGHT;
+            }
+        };
     }
 
     private void updatePreview() {
@@ -148,18 +156,16 @@ public class WndPreview extends Component {
     @Override
     protected void layout() {
         desc.maxWidth((int) width);
-        height = 0;
-        float posY = y + EditorUtilities.layoutCompsLinear(4, this, desc, creator, difficulty, time, version) + 5;
-        download.setRect(x + width / 5, posY, width * 3 / 5, 16);
-        height = posY - y + 16 + 2;
-
-        if (PixelScene.landscape()) {
-            delete.setRect(x + width - 16, posY, 16, 16);
-            edit.setRect(delete.left() - 16, posY, 16, 16);
-        } else {
-            delete.setRect(x + width - delete.icon().width(), posY + (16 - delete.icon().width()) * 0.5f, delete.icon().width(), delete.icon().width());
-            edit.setRect(delete.left() - edit.icon().width() - 1, posY + (16 - edit.icon().width()) * 0.5f, edit.icon().width(), edit.icon().width());
+        height = 2;
+        height = EditorUtilities.layoutCompsLinear(4, this, desc) + 6;
+        height = EditorUtilities.layoutCompsLinear(4, this, creator, difficulty, time, version);
+        btnCopyDesc.setRect(desc.left(), desc.top(), desc.width(), desc.height());
+        
+        if (images != null && images.length > 0) {
+            height += 5;
+            height = EditorUtilities.layoutCompsLinear(2, 18, this, images);
         }
+        height += 2;
     }
 
     public Component createTitle() {
@@ -170,11 +176,11 @@ public class WndPreview extends Component {
     }
 
     public Component getOutsideSp() {
-        return null;
+        return outsideSp;
     }
 
-    private void checkOwnership(Runnable onCorrect) {
-        ServerCommunication.isCreator(preview.dungeonFileID, new ServerCommunication.OwnershipCheckerCallback() {
+    public static void checkOwnership(String dungeonID, Runnable onCorrect) {
+        ServerCommunication.isCreator(dungeonID, new ServerCommunication.OwnershipCheckerCallback() {
             @Override
             protected void onSuccessful(Boolean value) {
                 if (value != null && value) onCorrect.run();
@@ -186,8 +192,25 @@ public class WndPreview extends Component {
             }
         });
     }
+    
+    public static void userRequestsDownload(DungeonPreview preview, String versionID) {
+        List<CustomDungeonSaves.Info> allInfos = CustomDungeonSaves.getAllInfos();
+        if (allInfos == null) return;
+        
+        String name = preview.title;
+        if (CustomDungeon.illegalNameEnding(name)) name += " ";
+        name = name.replace(' ', '_');
+        for (CustomDungeonSaves.Info info : allInfos) {
+            if (name.equals(info.name.replace(' ', '_'))) {
+                confirmOverride(preview, versionID);
+                return;
+            }
+        }
+        
+        actuallyStartDownload(preview, versionID);
+    }
 
-    private void confirmOverride() {
+    private static void confirmOverride(DungeonPreview preview, String versionID) {
         Game.scene().addToFront(new WndOptions(Icons.WARNING.get(),
                 Messages.get(WndPreview.class, "override_title"),
                 Messages.get(WndPreview.class, "override_body"),
@@ -203,7 +226,7 @@ public class WndPreview extends Component {
             @Override
             protected void onSelect(int index) {
                 if (index == 0 && timer > 0.6f) {
-                    startDownload();
+                    actuallyStartDownload(preview, versionID);
                 }
             }
 
@@ -215,39 +238,166 @@ public class WndPreview extends Component {
         });
     }
 
-    private void startDownload() {
-        ServerCommunication.downloadDungeon(preview.title, preview.dungeonFileID, new ServerCommunication.OnDungeonReceive() {
+    private static void actuallyStartDownload(DungeonPreview preview, String versionID) {
+        ServerCommunication.downloadDungeon(preview.title, versionID, new ServerCommunication.OnDungeonReceive() {
             @Override
             protected void onSuccessful(CustomDungeonSaves.Info info) {
                 Game.scene().addToFront(new WndOptions(
                         Messages.get(WndPreview.class, "successful_title"),
-                        Messages.get(WndPreview.class, "successful_body", info.name),
+                        Messages.get(WndPreview.class, "successful_body", info.name), false,
                         Messages.get(WndPreview.class, "successful_play"),
+                        Messages.get(WndPreview.class, "successful_edit_in_editor"),
                         Messages.get(WndSupportPrompt.class, "close")
                 ) {
                     @Override
                     protected void onSelect(int index) {
                         if (index == 0) {
-                            try {
-                                Dungeon.customDungeon = CustomDungeonSaves.loadDungeon(info.name);
-
-                                FileUtils.resetDefaultFileType();
-                                GamesInProgress.curSlot = GamesInProgress.firstEmpty();
-                                if (GamesInProgress.curSlot == -1) {
-                                    StartScene.skipDungeonSelection = true;
-                                    SandboxPixelDungeon.switchNoFade(StartScene.class);
-                                } else {
-                                    SandboxPixelDungeon.switchScene(HeroSelectScene.class);
-                                }
-
-                            } catch (IOException | CustomDungeonSaves.RenameRequiredException e) {
-                                SandboxPixelDungeon.reportException(e);
-                            }
-
+                            FileUtils.resetDefaultFileType();
+                            GamesInProgress.curSlot = GamesInProgress.firstEmpty();
+                            OpenDungeonScene.openDungeon(info.name, OpenDungeonScene.Mode.GAME_LOAD);
+                        }
+                        else if (index == 1) {
+                            OpenDungeonScene.openDungeon(info.name, OpenDungeonScene.Mode.EDITOR_LOAD);
                         }
                     }
                 });
             }
         });
     }
+    
+    
+    private class OutsideSpMenuPopup extends PopupMenu {
+        
+        public OutsideSpMenuPopup(int posX, int posY) {
+            
+            finishInstantiation(new RedButton[] {
+                    new RedButton(Messages.get(WndPreview.class, "show_versions") + " ") {
+                        {
+                            icon(Icons.CATALOG.get());
+                            leftJustify = true;
+                        }
+                        
+                        private Window waitWindow;
+                        private boolean canceled;
+
+                        @Override
+                        protected void onClick() {
+                            if (!preview.isVersionHistoryAvailable()) {
+                                showLoadingWindow();
+                            }
+                            preview.getVersionHistory(historyEntries -> {
+                                Game.runOnRenderThread(() -> {
+                                    if (waitWindow != null) {
+                                        waitWindow.hide();
+                                        waitWindow = null;
+                                    }
+                                    
+                                    if (canceled) {
+                                        canceled = false;
+                                        return;
+                                    }
+                                    
+                                    if (historyEntries == null) {
+                                        Game.scene().addToFront(new WndError(Messages.get(ServerCommunication.class, "error")) {
+                                            {
+                                                setHighlightingEnabled(false);
+                                            }
+                                        });
+                                        return;
+                                    }
+                                    OutsideSpMenuPopup.this.hideImmediately();
+                                    
+                                    WndVersionHistory.show(preview, historyEntries);
+                                });
+                            });
+                        }
+                        
+                        public void showLoadingWindow() {
+                            waitWindow = new WndOptions(Messages.get(ServerCommunication.class, "wait_title"),
+                                    Messages.get(ServerCommunication.class, "wait_body"),
+                                    Messages.get(ServerCommunication.class, "wait_cancel")) {
+                                {
+                                    tfMessage.setHighlighting(false);
+                                }
+                                @Override
+                                public void onBackPressed() {
+                                }
+                                
+                                @Override
+                                protected void onSelect(int index) {
+                                    if (index == 0) {
+                                        canceled = true;
+                                        //don’t do anything else, we just don’t cancel the request
+                                    }
+                                }
+                            };
+                            Game.scene().addToFront(waitWindow);
+                        }
+                    },
+                    new RedButton(Messages.get(WndPreview.class, "edit") + " ") {
+                        {
+                            icon(Icons.EDIT.get());
+                            leftJustify = true;
+                        }
+                        
+                        @Override
+                        protected void onClick() {
+                            checkOwnership(preview.dungeonID, () -> {
+                                OutsideSpMenuPopup.this.hideImmediately();
+                                serverDungeonList.closeCurrentSubMenu();
+                                UploadDungeon uploadDungeon = new UploadDungeon(null, ServerCommunication.UploadType.CHANGE, preview.description, preview, WndPreview.this::updatePreview, () -> {
+                                    updatePreview();
+                                    return true;
+                                }, UploadedDungeonRegistry.getAssociatedCoreID(preview.dungeonID));
+                                serverDungeonList.changeContent(uploadDungeon.createTitle(), uploadDungeon, uploadDungeon.getOutsideSp());
+                            });
+                        }
+                    },
+                    new RedButton(Messages.get(WndPreview.class, "delete") + " ") {
+                        {
+                            icon(Icons.TRASH.get());
+                            leftJustify = true;
+                        }
+                        
+                        @Override
+                        protected void onClick() {
+                            checkOwnership(preview.dungeonID, () -> {
+                                OutsideSpMenuPopup.this.hideImmediately();
+                                Game.scene().addToFront(new WndOptions(Icons.get(Icons.WARNING),
+                                        Messages.get(WndPreview.class, "delete_title"),
+                                        Messages.get(WndPreview.class, "delete_body"),
+                                        Messages.get(WndGameInProgress.class, "erase_warn_yes"),
+                                        Messages.get(WndGameInProgress.class, "erase_warn_no")) {
+                                    @Override
+                                    protected void onSelect(int index) {
+                                        if (index == 0) {
+                                            ServerCommunication.deleteDungeon(preview.dungeonID, preview.title, new ServerCommunication.UploadCallback() {
+                                                @Override
+                                                protected void onSuccessful(String dungeonID) {
+                                                    UploadedDungeonRegistry.dungeonDeletedFromServer(dungeonID);
+                                                    preview.description = preview.uploader = preview.title = Messages.get(ServerCommunication.class, "deleted");
+                                                    preview.version = "n/a";
+                                                    preview.dungeonID = "";
+                                                    preview.uploadTime = 0;
+                                                    preview.mostRecentDungeon = "";
+                                                    preview.versionFileID = "";
+                                                    preview.previewImageFileIDs = null;
+                                                    Game.runOnRenderThread(() -> {
+                                                        ServerDungeonList.updatePage();
+                                                        serverDungeonList.closeCurrentSubMenu();
+                                                        Game.scene().addToFront(new WndMessage(Messages.get(WndPreview.class, "delete_successful")));
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                    },
+                
+            }, posX, posY, 200);
+        }
+    }
+    
 }

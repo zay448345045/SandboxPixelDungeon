@@ -8,11 +8,13 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.PropertyListContainer;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroClass;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
+import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomCharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.editor.EditorScene;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.MobSprites;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.CustomObjectItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.EditorItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.MobSpriteItem;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.PropertyItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levelsettings.WndMenuEditor;
 import com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemContainerWithLabel;
 import com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemSelector;
@@ -34,7 +36,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.melee.MeleeWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
-import com.shatteredpixel.shatteredpixeldungeon.sprites.CharSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.HeroSpriteClassWrapper;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
 import com.shatteredpixel.shatteredpixeldungeon.ui.CheckBox;
@@ -83,7 +85,7 @@ public class HeroSettings extends Component {
             {
                 tabs = new TabControlButton[heroTabs.length];
                 for (int j = 0; j < tabs.length; j++) {
-                    tabs[j] = new OutsideSpSwitchTabs.TabControlButton(j);
+                    tabs[j] = new TabControlButton(j);
                     tabs[j].icon(createTabIcon(j));
                     add(tabs[j]);
                 }
@@ -157,7 +159,7 @@ public class HeroSettings extends Component {
         private final ItemContainerWithLabel<Item> startItems;
         private final ItemSelector startWeapon, startArmor, startRing, startArti, startMisc;
         private final ItemSelector sprite;
-        private final StyledSpinner plusLvl, plusStr;
+        private final StyledSpinner maxLvl, plusLvl, plusStr;
         private final PropertyListContainer properties;
 
         public HeroTab(int index) {
@@ -296,13 +298,13 @@ public class HeroSettings extends Component {
             startMisc.setShowWhenNull(ItemSpriteSheet.SOMETHING);
             add(startMisc);
 
-            final MobSpriteItem curentSprite = data.spriteClass == null ? null : new MobSpriteItem(data.spriteClass);
+            final EditorItem<?> curentSprite = data.spriteWrapper.asEditorItem();
             sprite = new StyledItemSelector(Messages.get(HeroSettings.class, "sprite"),
-                    MobSpriteItem.class, curentSprite == null ? EditorItem.NULL_ITEM : curentSprite, ItemSelector.NullTypeSelector.NOTHING) {
-                MobSpriteItem currentSprite = curentSprite;
+                    EditorItem.class, curentSprite == null ? EditorItem.NULL_ITEM : curentSprite, ItemSelector.NullTypeSelector.NOTHING) {
+                Item currentSprite = curentSprite;
                 {
                     selector.preferredBag = MobSprites.bag().getClass();
-                    setShowWhenNull(511);
+                    setShowWhenNull(ItemSpriteSheet.NO_IMAGE);
                     setSelectedItem(currentSprite);
                 }
                 @Override
@@ -316,11 +318,14 @@ public class HeroSettings extends Component {
                     if (selectedItem == currentSprite) return;
 
                     if (selectedItem instanceof MobSpriteItem) {
-                        currentSprite = (MobSpriteItem) selectedItem;
-                        data.spriteClass = currentSprite.getObject();
+                        currentSprite = selectedItem;
+                        data.spriteWrapper.setSpriteClass(((MobSpriteItem) selectedItem).getObject());
+                    } else if (selectedItem instanceof CustomObjectItem) {
+                        currentSprite = selectedItem;
+                        data.spriteWrapper.setCustomSprite((CustomCharSprite) ((CustomObjectItem) selectedItem).getObject());
                     } else {
                         currentSprite = null;
-                        data.spriteClass = null;
+                        data.spriteWrapper.clearData();
                     }
 
                 }
@@ -328,6 +333,17 @@ public class HeroSettings extends Component {
             add(sprite);
 
 
+			maxLvl = new StyledSpinner(new SpinnerIntegerModel(1, 1000, Hero.DEFAULT_MAX_LEVEL + data.maxLvl) {
+				{
+					setAbsoluteMinimum(1);
+				}
+				@Override
+				public float getInputFieldWidth(float height) {
+					return Spinner.FILL;
+				}
+			}, Messages.titleCase(Messages.get(HeroSettings.class, "max_lvl")), 10, EditorUtilities.createSubIcon(ItemSpriteSheet.Icons.POTION_EXP));
+			add(maxLvl);
+			
             plusLvl = new StyledSpinner(new SpinnerIntegerModel(1, 30, 1 + data.plusLvl) {
                 {
                     setAbsoluteMinimum(1);
@@ -348,6 +364,16 @@ public class HeroSettings extends Component {
             }, Messages.titleCase(Messages.get(WndGameInProgress.class, "str")), 10, EditorUtilities.createSubIcon(ItemSpriteSheet.Icons.POTION_STRENGTH));
             plusStr.addChangeListener(() -> data.plusStr = (int) plusStr.getValue() - Hero.STARTING_STR);
             add(plusStr);
+			
+			maxLvl.addChangeListener(() -> {
+				data.maxLvl = (int) maxLvl.getValue() - Hero.DEFAULT_MAX_LEVEL;
+				SpinnerIntegerModel model = (SpinnerIntegerModel) plusLvl.getModel();
+				
+				model.setMaximum(data.maxLvl + Hero.DEFAULT_MAX_LEVEL);
+				if (data.maxLvl + Hero.DEFAULT_MAX_LEVEL < (int) plusLvl.getValue()) {
+					model.setValue(data.maxLvl + Hero.DEFAULT_MAX_LEVEL);
+				}
+			});
 
             startItems = new ItemContainerWithLabel<Item>(data.items, Messages.get(HeroSettings.class, "items")) {
 
@@ -389,11 +415,28 @@ public class HeroSettings extends Component {
                 }
 
                 @Override
-                protected Set<Char.Property> getPropertiesToIgnore() {
-                    Set<Char.Property> result = super.getPropertiesToIgnore();
-                    result.add(Char.Property.PERMEABLE);
+                protected Char.Property doAddProperty(Char.Property property) {
+                    Char.Property result = super.doAddProperty(property);
+                    
+                    //LARGE and PERMEABLE are mutual excluded
+                    if (result == Char.Property.LARGE && data.properties.contains(Char.Property.PERMEABLE)) {
+                        for (Slot slot : slots) {
+                            if (((PropertyItem) slot.item()).getObject() == Char.Property.PERMEABLE) removeSlot(slot);
+                        }
+                    } else if (result == Char.Property.PERMEABLE && data.properties.contains(Char.Property.LARGE)){
+                        for (Slot slot : slots) {
+                            if (((PropertyItem) slot.item()).getObject() == Char.Property.LARGE) removeSlot(slot);
+                        }
+                    }
+                    
                     return result;
                 }
+                
+//                @Override
+//                protected Set<Char.Property> getPropertiesToIgnore() {
+//                    Set<Char.Property> result = super.getPropertiesToIgnore();
+//                    return result;
+//                }
             };
             add(properties);
         }
@@ -408,7 +451,7 @@ public class HeroSettings extends Component {
 
             height = EditorUtilities.layoutStyledCompsInRectangles(WndTitledMessage.GAP, width, this,
                     startWeapon, startArmor, startRing, startArti, startMisc, sprite, EditorUtilities.PARAGRAPH_INDICATOR_INSTANCE,
-                            plusLvl, plusStr);
+                            maxLvl, plusLvl, plusStr);
             height += WndTitledMessage.GAP * 1.5f;
 
             height = EditorUtilities.layoutCompsLinear(WndTitledMessage.GAP, this, startItems, properties);
@@ -423,19 +466,20 @@ public class HeroSettings extends Component {
                 + " (" + activeSubCls + "/" + heroClass.subClasses().length + ")";
     }
 
-    public static class HeroStartItemsData extends GameObject implements Copyable<HeroStartItemsData> {
+    public static class HeroStartItemsData extends GameObject {
         public Weapon weapon;
         public Armor armor;
         public Ring ring;
         public Artifact artifact;
         public KindofMisc misc;
         public List<Item> items = new ArrayList<>(4);
+		public int maxLvl;//default is 0, which means when setting it to the hero or displaying it on the screen, Hero.DEFAUlT_MAX_LEVEL must be added!
         public int plusLvl;//default is 0
         public int plusStr;//default is 0
 
         public Set<Char.Property> properties = new HashSet<>();
 
-        public Class<? extends CharSprite> spriteClass;
+        public HeroSpriteClassWrapper spriteWrapper = new HeroSpriteClassWrapper();
 
         private boolean needToAddDefaultConfiguration = false;
 
@@ -444,11 +488,12 @@ public class HeroSettings extends Component {
         private static final String RING = "ring";
         private static final String ARTIFACT = "artifact";
         private static final String MISC = "misc";
+        private static final String MAX_LVL = "max_lvl";
         private static final String LVL = "lvl";
         private static final String STR = "str";
         private static final String ITEMS = "items";
         private static final String PROPERTIES = "properties";
-        private static final String SPRITE_CLASS = "sprite_class";
+        private static final String SPRITE_WRAPPER = "sprite_wrapper";
 
         @Override
         public void storeInBundle(Bundle bundle) {
@@ -457,9 +502,10 @@ public class HeroSettings extends Component {
             bundle.put(RING, ring);
             bundle.put(ARTIFACT, artifact);
             bundle.put(MISC, misc);
+            bundle.put(MAX_LVL, maxLvl);
             bundle.put(LVL, plusLvl);
             bundle.put(STR, plusStr);
-            bundle.put(SPRITE_CLASS, spriteClass);
+            bundle.put(SPRITE_WRAPPER, spriteWrapper);
 
             int[] enumOrdinals = new int[properties.size()];
             int index = 0;
@@ -481,9 +527,11 @@ public class HeroSettings extends Component {
             misc = (KindofMisc) bundle.get(MISC);
 
             needToAddDefaultConfiguration = !bundle.contains(LVL);
+			maxLvl = bundle.getInt(MAX_LVL);
             plusLvl = bundle.getInt(LVL);
             plusStr = bundle.getInt(STR);
-
+            
+            items.clear();
             if (bundle.contains("bags")) {
                 for (Bundlable b : bundle.getCollection("bags")) {
                     items.add((Item) b);
@@ -510,7 +558,12 @@ public class HeroSettings extends Component {
                 }
             }
 
-            spriteClass = bundle.getClass(SPRITE_CLASS);
+            if (bundle.contains("sprite_class")) {
+                spriteWrapper.setSpriteClass(bundle.getClass("sprite_class"));
+            } else {
+                spriteWrapper = (HeroSpriteClassWrapper) bundle.get(SPRITE_WRAPPER);
+                if (spriteWrapper == null) spriteWrapper = new HeroSpriteClassWrapper();
+            }
         }
 
         @Override
@@ -556,7 +609,7 @@ public class HeroSettings extends Component {
         }
         
         public static HeroStartItemsData getDefault(int i) {
-            HeroStartItemsData startItems = new HeroSettings.HeroStartItemsData();
+            HeroStartItemsData startItems = new HeroStartItemsData();
             startItems.needToAddDefaultConfiguration = true;
             startItems.maybeInitDefault(i);
             return startItems;

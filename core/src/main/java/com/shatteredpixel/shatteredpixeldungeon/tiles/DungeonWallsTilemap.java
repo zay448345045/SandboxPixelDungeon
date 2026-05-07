@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ public class DungeonWallsTilemap extends DungeonTilemap {
 
 	public DungeonWallsTilemap(int region){
 		super(region == LevelScheme.REGION_NONE ? Dungeon.level.tilesTex() : CustomLevel.tilesTex(region, false));
+		tileset.frameIdIfNull = DungeonTileSheet.INVISIBLE_TILE;
 
 		this.region = region;
 
@@ -62,7 +63,9 @@ public class DungeonWallsTilemap extends DungeonTilemap {
 
 				if (map[pos + mapWidth] == Terrain.DOOR || map[pos + mapWidth] == Terrain.MIMIC_DOOR){
 					return DungeonTileSheet.DOOR_SIDEWAYS;
-				} else if (map[pos + mapWidth] == Terrain.LOCKED_DOOR){
+				} else if (map[pos + mapWidth] == Terrain.LOCKED_DOOR) {
+					return DungeonTileSheet.DOOR_SIDEWAYS_LOCKED;
+				} else if (map[pos + mapWidth] == Terrain.HERO_LKD_DR){
 					return DungeonTileSheet.DOOR_SIDEWAYS_LOCKED;
 				} else if (map[pos + mapWidth] == Terrain.COIN_DOOR){
 					return DungeonTileSheet.DOOR_SIDEWAYS_COIN;
@@ -104,6 +107,7 @@ public class DungeonWallsTilemap extends DungeonTilemap {
 
 		} else if (Dungeon.level.insideMap(pos)
 				&& (map[pos+mapWidth] == Terrain.DOOR || map[pos+mapWidth] == Terrain.LOCKED_DOOR
+				|| map[pos+mapWidth] == Terrain.HERO_LKD_DR
 				|| map[pos+mapWidth] == Terrain.COIN_DOOR || map[pos+mapWidth] == Terrain.MIMIC_DOOR) ) {
 			return DungeonTileSheet.DOOR_OVERHANG;
 		} else if (Dungeon.level.insideMap(pos) && map[pos+mapWidth] == Terrain.OPEN_DOOR ) {
@@ -118,6 +122,26 @@ public class DungeonWallsTilemap extends DungeonTilemap {
 			return DungeonTileSheet.STATUE_OVERHANG;
 		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.STATUE_SP){
 			return DungeonTileSheet.STATUE_SP_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.BARREL){
+			return DungeonTileSheet.BARREL_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.BARREL_ALT){
+			return DungeonTileSheet.BARREL_ALT_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.CAGE){
+			return DungeonTileSheet.CAGE_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.CAGE_ALT){
+			return DungeonTileSheet.CAGE_ALT_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.METAL_STRUCTURE){
+			return DungeonTileSheet.METAL_STRUCTURE_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.METAL_STRUCTURE_ALT){
+			return DungeonTileSheet.METAL_STRUCTURE_ALT_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.FLAMING_PEDESTAL){
+			return DungeonTileSheet.FLAMING_PEDESTAL_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.FLAMING_PEDESTAL_ALT){
+			return DungeonTileSheet.FLAMING_PEDESTAL_ALT_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.RUBBLE){
+			return DungeonTileSheet.RUBBLE_OVERHANG;
+		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.RUBBLE_ALT){
+			return DungeonTileSheet.RUBBLE_ALT_OVERHANG;
 		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.MINE_CRYSTAL){
 			return DungeonTileSheet.getVisualWithAlts(DungeonTileSheet.MINE_CRYSTAL_OVERHANG, pos + mapWidth);
 		} else if (pos + mapWidth < size && map[pos+mapWidth] == Terrain.MINE_BOULDER){

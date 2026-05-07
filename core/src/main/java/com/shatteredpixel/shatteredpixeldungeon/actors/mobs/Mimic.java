@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -201,6 +201,7 @@ public class Mimic extends Mob implements MobBasedOnDepth {
 		if (alignment == Alignment.NEUTRAL){
 			alignment = Alignment.ENEMY;
 			Dungeon.hero.spendAndNext(1f);
+			enemySeen = true;
 		}
 	}
 
@@ -270,7 +271,9 @@ public class Mimic extends Mob implements MobBasedOnDepth {
 
 	@Override
 	public void beckon( int cell ) {
-		// Do nothing
+		if (alignment != Alignment.NEUTRAL) {
+			super.beckon(cell);
+		}
 	}
 
 	@Override

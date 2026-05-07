@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.Trap;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
+import com.watabou.utils.Bundle;
 import com.watabou.utils.Point;
 
 import java.util.ArrayList;
@@ -73,8 +74,9 @@ public class ToxicGasRoom extends SpecialRoom {
 			do {
 				cell = level.pointToCell(random(2));
 			} while (level.map[cell] != Terrain.EMPTY);
-			level.setTrap(new ToxicVent().reveal(), cell);
-			Blob.seed(cell, 12, ToxicGasSeed.class, level);
+			ToxicVent vent = new ToxicVent();
+			level.setTrap(vent.reveal(), cell);
+			Blob.seed(cell, vent.strength, ToxicGasSeed.class, level);
 			Painter.set(level, cell, Terrain.INACTIVE_TRAP);
 		}
 
@@ -127,7 +129,7 @@ public class ToxicGasRoom extends SpecialRoom {
 		spawnItemsInRoom.addAll(spawnsInChest);
 		placeItemsAnywhere(level);
 
-		entrance().set( Door.Type.UNLOCKED );
+		entrance().set( Door.Type.REGULAR );
 
 	}
 
@@ -148,6 +150,9 @@ public class ToxicGasRoom extends SpecialRoom {
 
 	@Override
 	public boolean canPlaceCharacter(Point p, Level l) {
+		if (!super.canPlaceCharacter(p, l)) {
+			return false;
+		}
 		Blob gas = l.blobs.getOnly(ToxicGas.class);
 		return gas == null || gas.volume == 0 || gas.cur[l.pointToCell(p)] == 0;
 	}
@@ -189,6 +194,8 @@ public class ToxicGasRoom extends SpecialRoom {
 
 	public static class ToxicVent extends Trap {
 
+		public int strength = 12;
+		
 		{
 			color = BLACK;
 			shape = GRILL;
@@ -200,6 +207,20 @@ public class ToxicGasRoom extends SpecialRoom {
 		@Override
 		public void activate() {
 			//does nothing, this trap is just decoration and is always deactivated
+		}
+		
+		private static final String STRENGTH = "strength";
+		
+		@Override
+		public void storeInBundle(Bundle bundle) {
+			super.storeInBundle(bundle);
+			bundle.put(STRENGTH, strength);
+		}
+		
+		@Override
+		public void restoreFromBundle(Bundle bundle) {
+			super.restoreFromBundle(bundle);
+			strength = bundle.getInt(STRENGTH);
 		}
 
 	}

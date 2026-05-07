@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,8 +77,10 @@ public abstract class CustomGameObject<T extends CustomGameObjectClass> extends 
 	public abstract GameObjectCategory<?> inventoryCategory();
 
 	@Override
-	public LuaCustomObjectClass newInstance() {
-		return (LuaCustomObjectClass) userContentClass.newInstance();
+	public LuaCustomObjectClass newInstance(Object[] params) {
+		LuaCustomObjectClass instance = (LuaCustomObjectClass) userContentClass.newInstance();
+		LuaClassGenerator.fetchVarsFromScript(instance, null);
+		return instance;
 	}
 
 	private static final String USER_CONTENT_CLASS = "user_content_class";

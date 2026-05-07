@@ -28,6 +28,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.FlavourBuff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.LifeLink;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
+import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.abilities.cleric.PowerOfMany;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
@@ -85,6 +86,11 @@ public class BeamingRay extends TargetedClericSpell {
 
 		int telePos = target;
 
+		if (!Dungeon.level.insideMap(telePos)){
+			GLog.w(Messages.get(this, "no_space"));
+			return;
+		}
+
 		if (Dungeon.level.solid[telePos] || !Dungeon.level.heroFOV[telePos] || Actor.findChar(telePos) != null){
 			telePos = -1;
 			for (int i : PathFinder.NEIGHBOURS8){
@@ -118,6 +124,9 @@ public class BeamingRay extends TargetedClericSpell {
 		Char chTarget = null;
 		if (Actor.findChar(target) != null && Actor.findChar(target).alignment == Char.Alignment.ENEMY){
 			chTarget = Actor.findChar(target);
+			if (hero.subClass == HeroSubClass.PRIEST){
+				Buff.affect(chTarget, GuidingLight.Illuminated.class);
+			}
 		}
 
 		if (ally == Stasis.getStasisAlly()){

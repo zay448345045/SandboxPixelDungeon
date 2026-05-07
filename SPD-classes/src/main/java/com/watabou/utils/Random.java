@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,11 @@ package com.watabou.utils;
 
 import com.watabou.noosa.Game;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 
 public class Random {
 
@@ -167,19 +171,24 @@ public class Random {
 	}
 
 	//returns an index from chances, the probability of each index is the weight values in changes
+	//negative values are treated as 0
 	public static int chances( float[] chances ) {
 		
 		int length = chances.length;
 		
 		float sum = 0;
 		for (int i=0; i < length; i++) {
-			sum += chances[i];
+			sum += Math.max(0, chances[i]);
+		}
+
+		if (sum <= 0){
+			return -1;
 		}
 		
 		float value = Float( sum );
 		sum = 0;
 		for (int i=0; i < length; i++) {
-			sum += chances[i];
+			sum += Math.max(0, chances[i]);
 			if (value < sum) {
 				return i;
 			}
@@ -272,7 +281,18 @@ public class Random {
 			}
 		}
 	}
-	
+
+	public static void shuffle( int[] array ) {
+		for (int i=0; i < array.length - 1; i++) {
+			int j = Int( i, array.length );
+			if (j != i) {
+				int t = array[i];
+				array[i] = array[j];
+				array[j] = t;
+			}
+		}
+	}
+
 	public static<T> void shuffle( T[] array ) {
 		for (int i=0; i < array.length - 1; i++) {
 			int j = Int( i, array.length );

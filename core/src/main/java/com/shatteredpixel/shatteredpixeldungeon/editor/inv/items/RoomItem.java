@@ -1,18 +1,30 @@
 package com.shatteredpixel.shatteredpixeldungeon.editor.inv.items;
 
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
+import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.SacrificialFire;
 import com.shatteredpixel.shatteredpixeldungeon.editor.TileSprite;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.DefaultEditComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditRoomComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
-import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.AmbitiousImpRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.BlacksmithRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MassGraveRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RitualSiteRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RotGardenRoom;
-import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.*;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.RatKingRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretArtilleryRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretChestChasmRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretGardenRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretHoardRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretHoneypotRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretLaboratoryRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretLarderRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretLibraryRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretRunestoneRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretSummoningRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.secret.SecretWellRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.*;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.*;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.entrance.EntranceRoom;
@@ -20,7 +32,17 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.entrance.E
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.exit.ExitRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.exit.ExitRoomInterface;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
-import com.shatteredpixel.shatteredpixeldungeon.sprites.*;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.BlacksmithSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ImpSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.MimicSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.PiranhaSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.RatKingSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ShopkeeperSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.SpawnerSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.StatueSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.WraithSprite;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.DungeonTileSheet;
 import com.watabou.noosa.Image;
 import com.watabou.utils.Bundle;
@@ -53,7 +75,7 @@ public class RoomItem extends EditorItem<Room> {
     }
 
     @Override
-    public Item getCopy() {
+    public RoomItem getCopy() {
         return new RoomItem(getObject().getCopy());
     }
 
@@ -81,12 +103,13 @@ public class RoomItem extends EditorItem<Room> {
 
     public static Image getImage(Class<? extends Room> r) {
 
-        //standard rooms
+        //standard room
+        if (r == AmbitiousImpRoom.class) return new ImpSprite();
         if (r == AquariumRoom.class)  return new PiranhaSprite();//TODO maybe make own sprite with bg included?
         if (r == BlacksmithRoom.class) return new BlacksmithSprite();
         if (r == BurnedRoom.class) return new TileSprite(Assets.Environment.TILES_SEWERS, Terrain.EMBERS);
         if (r == CaveRoom.class) return new TileSprite(Assets.Environment.TILES_CAVES, Terrain.EMPTY);
-        if(r == CavesFissureRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_CAVES, DungeonTileSheet.CHASM_FLOOR);
+        if (r == CavesFissureRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_CAVES, DungeonTileSheet.CHASM_FLOOR);
         //CellBlock
         if (r == ChasmRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_SEWERS, DungeonTileSheet.CHASM_WALL);
         if (r == CircleBasinRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_SEWERS,DungeonTileSheet.CHASM_FLOOR_SP);
@@ -97,11 +120,14 @@ public class RoomItem extends EditorItem<Room> {
         if (r == GrassyGraveRoom.class) return new ItemSprite(ItemSpriteSheet.TOMB);
         if (r == HallwayRoom.class) return new TileSprite(Assets.Environment.TILES_CITY, Terrain.EMPTY_SP);
         if (r == ImpShopRoom.class) return new ImpSprite();
+        if (r == LibraryRingRoom.class) return new TileSprite(Assets.Environment.TILES_CITY, Terrain.BOOKSHELF);
+        if (r == LibraryHallRoom.class) return new TileSprite(Assets.Environment.TILES_CITY, Terrain.BOOKSHELF);
         if (r == MinefieldRoom.class) return EditorUtilities.getTerrainFeatureTexture(65);//explosive trap
         //Pillars
-        //Plants
+        if (r == PlantsRoom.class) return EditorUtilities.getTerrainFeatureTexture(126);//Seedpod
         if (r == PlatformRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_SEWERS, DungeonTileSheet.CHASM_FLOOR_SP);
         //Ring
+        if (r == RitualRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_HALLS, DungeonTileSheet.PEDESTAL);
         if (r == RitualSiteRoom.class) return new ItemSprite(ItemSpriteSheet.CANDLE);
         //Ruins
         if (r == SegmentedLibraryRoom.class) return new TileSprite(Assets.Environment.TILES_CITY, Terrain.BOOKSHELF);
@@ -123,7 +149,7 @@ public class RoomItem extends EditorItem<Room> {
         if (r == GardenRoom.class) return new ItemSprite(ItemSpriteSheet.SEED_SUNGRASS);
         if (r == LaboratoryRoom.class) return new TileSprite(Assets.Environment.TILES_SEWERS, Terrain.ALCHEMY);
         if (r == LibraryRoom.class) return new TileSprite(Assets.Environment.TILES_SEWERS, Terrain.BOOKSHELF);
-        //MagicalFire
+        if (r == MagicalFireRoom.class) return BlobItem.createIcon(MagicalFireRoom.EternalFire.class);
         if (r == MagicWellRoom.class) return new TileSprite(Assets.Environment.TILES_SEWERS, Terrain.WELL);
         if (r == MassGraveRoom.class) return new ItemSprite(ItemSpriteSheet.TOMB);
         if (r == PitRoom.class) return new ItemSprite(ItemSpriteSheet.BONES);
@@ -131,11 +157,11 @@ public class RoomItem extends EditorItem<Room> {
         if (r == RatKingRoom.class) return new RatKingSprite();
         if (r == RotGardenRoom.class) return new ItemSprite(ItemSpriteSheet.SEED_ROTBERRY);
         if (r == RunestoneRoom.class) return new ItemSprite(ItemSpriteSheet.STONE_ENCHANT);
-        //SacrificeRoom
+        if (r == SacrificeRoom.class) return BlobItem.createIcon(SacrificialFire.class);
         if (r == SentryRoom.class) return new SentryRoom.SentrySprite();
         if (r == ShopRoom.class) return new ShopkeeperSprite();
         if (r == StatueRoom.class) return new StatueSprite();
-        //Storage
+        if (r == StorageRoom.class) return TileSprite.createTilespriteWithImage(Assets.Environment.TILES_SEWERS, DungeonTileSheet.FLAT_BARREL_ALT);
         if (r == ToxicGasRoom.class) return EditorUtilities.getTerrainFeatureTexture(40);//toxic vent
         if (r == TrapsRoom.class) return EditorUtilities.getTerrainFeatureTexture(7);
         if (r == TreasuryRoom.class) return new ItemSprite(ItemSpriteSheet.GOLD);

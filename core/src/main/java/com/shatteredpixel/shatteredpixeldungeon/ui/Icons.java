@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ public enum Icons {
 	BOOKMARK(true),
 	MORE(true),
 	SORT(true),
+	BTN_DOWNLOAD(true),
 
 	BACK(true),
 	SWAP(true),
@@ -116,6 +117,7 @@ public enum Icons {
 	RIGHTARROW,
 	CALENDAR,
 	CHEVRON,
+	SHUFFLE,
 
 	//misc larger icons, mainly used for buttons, tabs, and journal, spacing for 16x16
 	TARGET,
@@ -161,6 +163,7 @@ public enum Icons {
 	SLEEP,
 	ALERT,
 	LOST,
+	INVESTIGATE,
 	DEPTH,      //depth icons have three variants, for regular, seeded, daily, and daily replay runs
 	DEPTH_CHASM,
 	DEPTH_WATER,
@@ -278,6 +281,9 @@ public enum Icons {
 				break;
 			case SORT:
 				icon.frame(icon.texture.uvRectBySize(88, 32, 11, 11));
+				break;
+			case BTN_DOWNLOAD:
+				icon.frame(icon.texture.uvRectBySize(99, 32, 11, 11));
 				break;
 
 			case BACK:
@@ -417,6 +423,9 @@ public enum Icons {
 			case CHEVRON:
 				icon.frame( icon.texture.uvRectBySize( 240, 16, 13, 10 ) );
 				break;
+			case SHUFFLE:
+				icon.frame(icon.texture.uvRectBySize( 240, 32, 15, 12 ) );
+				break;
 
 			case TARGET:
 				icon.frame( icon.texture.uvRectBySize( 0, 32, 16, 16 ) );
@@ -530,13 +539,16 @@ public enum Icons {
 				icon.frame( icon.texture.uvRectBySize( 0, 88, 7, 5 ) );
 				break;
 			case SLEEP:
-				icon.frame( icon.texture.uvRectBySize( 16, 80, 9, 8 ) );
+				icon.frame( icon.texture.uvRectBySize( 7, 88, 9, 8 ) );
 				break;
 			case ALERT:
-				icon.frame( icon.texture.uvRectBySize( 16, 88, 8, 8 ) );
+				icon.frame( icon.texture.uvRectBySize( 16, 80, 8, 8 ) );
 				break;
 			case LOST:
-				icon.frame( icon.texture.uvRectBySize( 24, 88, 8, 8 ) );
+				icon.frame( icon.texture.uvRectBySize( 24, 80, 8, 8 ) );
+				break;
+			case INVESTIGATE:
+				icon.frame( icon.texture.uvRectBySize( 16, 88, 8, 8 ) );
 				break;
 			case DEPTH:
 				icon.frame( icon.texture.uvRectBySize( 32 + runTypeOfsX(), 80 + runTypeOfsY(), 6, 7 ) );

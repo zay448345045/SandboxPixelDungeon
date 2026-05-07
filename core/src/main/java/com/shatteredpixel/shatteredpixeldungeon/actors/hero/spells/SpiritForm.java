@@ -39,6 +39,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.HolyTome;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.HornOfPlenty;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.MasterThievesArmband;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.SandalsOfNature;
+import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.SkeletonKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TalismanOfForesight;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TimekeepersHourglass;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.UnstableSpellbook;
@@ -205,11 +206,11 @@ public class SpiritForm extends ClericSpell {
 			ArrayList<Integer> spawnPoints = new ArrayList<>();
 			for (int i = 0; i < PathFinder.NEIGHBOURS8.length; i++) {
 				int p = Dungeon.hero.pos + PathFinder.NEIGHBOURS8[i];
-				if (Barrier.canEnterCell(p, w, true, true)) {
+				if (Barrier.canEnterCell(p, w, w.isFlying(), true)) {
 					spawnPoints.add(p);
 				}
 			}
-			if (spawnPoints.size() > 0) {
+			if (!spawnPoints.isEmpty()) {
 				Wraith.spawnAt(Random.element(spawnPoints), w);
 				w.HP = w.HT = 20 + 8*artifactLevel();
 			}
@@ -251,6 +252,9 @@ public class SpiritForm extends ClericSpell {
 
 		} else if (effect instanceof UnstableSpellbook){
 			((UnstableSpellbook) effect).doReadEffect(Dungeon.hero);
+
+		} else if (effect instanceof SkeletonKey){
+			GameScene.selectCell(((SkeletonKey) effect).targeter);
 		}
 	}
 

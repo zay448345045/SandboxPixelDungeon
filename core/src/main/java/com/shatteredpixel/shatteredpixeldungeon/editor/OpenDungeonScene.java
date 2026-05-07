@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,10 @@ package com.shatteredpixel.shatteredpixeldungeon.editor;
 
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.GamesInProgress;
 import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObjectManager;
+import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomLevel;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.editor.overview.FloorOverviewScene;
@@ -33,6 +35,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomTileLoader;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.HeroSelectScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
+import com.shatteredpixel.shatteredpixeldungeon.scenes.StartScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.TitleScene;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
@@ -42,7 +45,9 @@ import com.watabou.noosa.Camera;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.Image;
 import com.watabou.utils.GameMath;
+import com.watabou.utils.PlatformSupport;
 import com.watabou.utils.Random;
+import com.watabou.utils.RectF;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -71,6 +76,17 @@ public class OpenDungeonScene extends PixelScene {
 		}
 	}
 	
+	public static void quickOpenDungeon(CustomDungeon loadedDungeon, Mode mode) {
+		try {
+			OpenDungeonScene.mode = mode;
+			Dungeon.customDungeon = loadedDungeon;
+			mode.afterLoading();
+			mode.actuallyEnter();
+		} catch (Exception e) {
+			error = e;
+		}
+	}
+	
 	public enum Mode {
 		EDITOR_LOAD,
 		GAME_LOAD;
@@ -80,10 +96,12 @@ public class OpenDungeonScene extends PixelScene {
 				case EDITOR_LOAD:
 					EditorScene.isEditing = true;
 					CustomTileLoader.loadTiles(EditorScene.openDifferentLevel);
+					CustomObjectManager.loadUserContentFromFiles();
 					break;
 				case GAME_LOAD:
 					EditorScene.isEditing = false;
 					CustomTileLoader.loadTiles(true);
+					CustomObjectManager.loadUserContentFromFiles();
 					break;
 			}
 		}
@@ -91,6 +109,7 @@ public class OpenDungeonScene extends PixelScene {
 		public void actuallyEnter() {
 			switch (this) {
 				case EDITOR_LOAD:
+					Dungeon.levelName = null;
 					String lastEditedFloor = Dungeon.customDungeon.getLastEditedFloor();
 					LevelScheme l;
 					if (Dungeon.customDungeon.getNumFloors() == 0 || lastEditedFloor == null || (l = Dungeon.customDungeon.getFloor(lastEditedFloor)) == null) {
@@ -108,7 +127,12 @@ public class OpenDungeonScene extends PixelScene {
 					break;
 					
 				case GAME_LOAD:
-					SandboxPixelDungeon.switchScene(HeroSelectScene.class);
+					if (GamesInProgress.curSlot == -1) {
+						StartScene.skipDungeonSelection = true;
+						SandboxPixelDungeon.switchNoFade(StartScene.class);
+					} else {
+						SandboxPixelDungeon.switchScene(HeroSelectScene.class);
+					}
 					break;
 			}
 		}
@@ -134,6 +158,8 @@ public class OpenDungeonScene extends PixelScene {
 	private static Thread thread;
 	private static Exception error = null;
 	private float waitingTime;
+	
+	private RectF insets;
 	
 	@Override
 	public void create() {
@@ -183,6 +209,11 @@ public class OpenDungeonScene extends PixelScene {
 				}
 				break;
 		}
+		
+		insets = Game.platform.getSafeInsets(PlatformSupport.INSET_BLK).scale(1f/defaultZoom);
+		
+		int w = (int)(Camera.main.width - insets.left - insets.right);
+		int h = (int)(Camera.main.height - insets.top - insets.bottom);
 
 		background = new Image(loadingAsset);
 		background.scale.set(Camera.main.height/background.height);
@@ -221,17 +252,17 @@ public class OpenDungeonScene extends PixelScene {
 			}
 		};
 		im.angle = 90;
-		im.x = Camera.main.width;
-		im.scale.x = Camera.main.height/5f;
-		im.scale.y = Camera.main.width;
+		im.x = insets.left + w;
+		im.scale.x = h/5f;
+		im.scale.y = w;
 		add(im);
 
 		String text = Messages.get(this, "loading");
 		
 		loadingText = PixelScene.renderTextBlock( text, 9 );
 		loadingText.setPos(
-				(Camera.main.width - loadingText.width() - 8),
-				(Camera.main.height - loadingText.height() - 6)
+				insets.left + w - loadingText.width() - 12,
+				insets.top + h - loadingText.height() - 6
 		);
 		align(loadingText);
 		add(loadingText);
@@ -290,6 +321,9 @@ public class OpenDungeonScene extends PixelScene {
 			}
 		}
 		
+		int w = (int)(Camera.main.width - insets.left - insets.right);
+		int h = (int)(Camera.main.height - insets.top - insets.bottom);
+		
 		switch (phase) {
 		
 		case FADE_IN:
@@ -325,12 +359,14 @@ public class OpenDungeonScene extends PixelScene {
 				if (error instanceof FileNotFoundException)     errorMsg = Messages.get(this, "file_not_found");
 				else if (error instanceof IOException)          errorMsg = Messages.get(this, "io_error");
 				else if (error.getCause() instanceof CustomDungeonSaves.RenameRequiredException) errorMsg = error.getCause().getMessage();
+				else if (error instanceof CustomDungeonSaves.RenameRequiredException) errorMsg = error.getMessage();
 
 				else throw new RuntimeException("fatal error occurred during loading!", error);
 
 				add( new WndError( errorMsg ) {
 					{
-						if (error.getCause() instanceof CustomDungeonSaves.RenameRequiredException) {
+						if (error.getCause() instanceof CustomDungeonSaves.RenameRequiredException
+							|| error instanceof CustomDungeonSaves.RenameRequiredException) {
 							setHighlightingEnabled(false);
 						}
 					}

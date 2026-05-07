@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +53,10 @@ public class WndSupportPrompt extends Window {
 			message += "\n" + Messages.get(SupporterScene.class, "patreon_english");
 		}
 		message += "\n- Evan";
+		
+		message = message.replace("Shattered Pixel Dungeon", "Sandbox Pixel Dungeon");
+		message = message.replace("Shattered PD", "Sandbox PD");
+		message = message.replace("ShatteredPD", "SandboxPD");
 
 		RenderedTextBlock text = PixelScene.renderTextBlock( 6 );
 		text.text( message, width );

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 package com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special;
 
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Foliage;
+import com.shatteredpixel.shatteredpixeldungeon.items.keys.IronKey;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
@@ -30,6 +31,10 @@ import com.shatteredpixel.shatteredpixeldungeon.plants.Sungrass;
 import com.watabou.utils.Random;
 
 public class GardenRoom extends SpecialRoom {
+	
+	{
+		spawnItemsOnLevel.add(new IronKey());
+	}
 
 	public void paint( Level level ) {
 		
@@ -37,7 +42,7 @@ public class GardenRoom extends SpecialRoom {
 		Painter.fill( level, this, 1, Terrain.HIGH_GRASS );
 		Painter.fill( level, this, 2, Terrain.GRASS );
 		
-		entrance().set( Door.Type.REGULAR );
+		entrance().set( Door.Type.LOCKED );
 
 		int bushes = Random.Int(3);
 		if (bushes == 0) {

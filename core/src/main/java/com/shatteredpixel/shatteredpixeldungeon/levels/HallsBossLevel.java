@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,10 +122,13 @@ public class HallsBossLevel extends Level {
 
 		}
 
+		int exitCell = width/2 + ((ROOM_TOP+1) * width);
+		int bossPos = exitCell + width*3;
+
 		boolean[] patch = Patch.generate(width, height, 0.20f, 0, true);
 		for (int i = 0; i < length(); i++) {
 			if (map[i] == Terrain.EMPTY && patch[i]) {
-				map[i] = Terrain.STATUE;
+				map[i] = distance(i, bossPos)+Random.Int(5) >= 10 ? Terrain.RUBBLE : Terrain.STATUE;
 			}
 		}
 
@@ -135,7 +138,7 @@ public class HallsBossLevel extends Level {
 
 		patch = Patch.generate(width, height, 0.30f, 3, true);
 		for (int i = 0; i < length(); i++) {
-			if ((map[i] == Terrain.EMPTY || map[i] == Terrain.STATUE) && patch[i]) {
+			if ((map[i] == Terrain.EMPTY || map[i] == Terrain.STATUE || map[i] == Terrain.RUBBLE) && patch[i]) {
 				map[i] = Terrain.WATER;
 			}
 		}
@@ -177,6 +180,12 @@ public class HallsBossLevel extends Level {
 		vis = new LevelExitVisual();
 		vis.pos(WIDTH/2, ROOM_TOP + 1);
 		customWalls.add(vis);
+
+		for (int i = 0; i < length(); i++) {
+			if (map[i] == Terrain.RUBBLE && Random.Int(2) == 0) {
+				map[i] = Terrain.RUBBLE_ALT;
+			}
+		}
 
 		//basic version of building flag maps for the pathfinder test
 		for (int i = 0; i < length; i++){

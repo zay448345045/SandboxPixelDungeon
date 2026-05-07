@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ import com.shatteredpixel.shatteredpixeldungeon.sprites.GuardSprite;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.Callback;
-import com.watabou.utils.Random;
 
 public class Guard extends Mob {
 
@@ -88,7 +87,9 @@ public class Guard extends Mob {
 		else {
 			int newPos = -1;
 			for (int i : chain.subPath(1, chain.dist)){
-				if (!Dungeon.level.solid[i] && Actor.findChar(i) == null){
+				//find the closest position to the guard that's open for the target
+				if (!Dungeon.level.solid[i] && Actor.findChar(i) == null
+						&& (Dungeon.level.openSpace[i] || !Char.hasProp(enemy, Property.LARGE))){
 					newPos = i;
 					break;
 				}
@@ -135,6 +136,8 @@ public class Guard extends Mob {
 			Dungeon.hero.interrupt();
 			Dungeon.observe();
 			GameScene.updateFog();
+		} else {
+			enemy.sprite.visible = Dungeon.level.heroFOV[pullPos];
 		}
 	}
 
@@ -212,8 +215,6 @@ public class Guard extends Mob {
 					&& !canAttack( enemy )
 					&& Dungeon.level.distance( pos, enemy.pos ) < 5
 					&& enemy.invisible <= 0
-
-					
 					&& chain(enemy.pos)){
 				return !(sprite.visible || enemy.sprite.visible);
 			} else {

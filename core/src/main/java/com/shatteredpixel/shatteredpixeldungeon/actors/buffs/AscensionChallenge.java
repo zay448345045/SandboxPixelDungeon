@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,38 +26,14 @@ import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
-import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.abilities.Ratmogrify;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Bat;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Brute;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Crab;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.DM100;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.DM200;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Elemental;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Eye;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Ghoul;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Gnoll;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Golem;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Guard;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Monk;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Necromancer;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Rat;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.RipperDemon;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Scorpio;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Shaman;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Skeleton;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Slime;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Snake;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Spinner;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Succubus;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Swarm;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Thief;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Warlock;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.*;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Shopkeeper;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomLevel;
 import com.shatteredpixel.shatteredpixeldungeon.items.Amulet;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.DriedRose;
+import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
+import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.ui.BuffIndicator;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
@@ -157,6 +133,13 @@ public class AscensionChallenge extends Buff {
 		return speed;
 	}
 
+	public static boolean qualifiedForPacifist(){
+		if (Dungeon.hero.buff(AscensionChallenge.class) != null){
+			return !Dungeon.hero.buff(AscensionChallenge.class).stacksLowered;
+		}
+		return false;
+	}
+
 	public static void processEnemyKill(Char enemy){
 		AscensionChallenge chal = Dungeon.hero.buff(AscensionChallenge.class);
 		if (chal == null) return;
@@ -187,13 +170,16 @@ public class AscensionChallenge extends Buff {
 			chal.stacks -= 1;
 		}
 		chal.stacks = Math.max(0, chal.stacks);
-		if (chal.stacks < 8f && (int)(chal.stacks/2) != (int)(oldStacks/2f)){
+		if (!chal.stacksLowered) {
+			chal.stacksLowered = true;
+			GLog.p(Messages.get(AscensionChallenge.class, "weaken"));
+		} else if (chal.stacks < 8f && (int)(chal.stacks/2) != (int)(oldStacks/2f)){
 			GLog.p(Messages.get(AscensionChallenge.class, "weaken"));
 		}
 
 		//if the hero is at the max level, grant them 10 effective xp per stack cleared
 		// for the purposes of on-xp gain effects
-		if (oldStacks > chal.stacks && Dungeon.hero.lvl == Hero.MAX_LEVEL){
+		if (oldStacks > chal.stacks && Dungeon.hero.lvl == Dungeon.hero.maxLevel){
 			Dungeon.hero.earnExp(Math.round(10*(oldStacks - chal.stacks)), chal.getClass());
 		}
 
@@ -235,6 +221,8 @@ public class AscensionChallenge extends Buff {
 	private float stacks = 0;
 	private float damageInc = 0;
 
+	private boolean stacksLowered = false;
+
 	public void onLevelSwitch(){
 		if (Dungeon.depth < Statistics.highestAscent){
 			Statistics.highestAscent = Dungeon.depth;
@@ -244,6 +232,13 @@ public class AscensionChallenge extends Buff {
 				Buff.affect(Dungeon.hero, Healing.class).setHeal(Dungeon.hero.HT, 0, 20);
 			} else {
 				stacks += 2f;
+				
+				//doors locked by the hero are reset, to prevent blocking out enemies
+				for (int i = 0; i < Dungeon.level.length(); i++){
+					if (Dungeon.level.map[i] == Terrain.HERO_LKD_DR){
+						Level.set(i, Terrain.DOOR, Dungeon.level);
+					}
+				}
 
 				if (!(Dungeon.level instanceof CustomLevel)) {
 					//clears any existing mobs from the level and adds one initial one
@@ -291,7 +286,9 @@ public class AscensionChallenge extends Buff {
 			} else if (stacks >= 2f){
 				GLog.n(Messages.get(this, "beckon"));
 			}
-			if (stacks > 8 || stacks > 4 && Dungeon.depth > 20){
+			if (stacks > 4 && !stacksLowered){
+				GLog.h(Messages.get(this, "weaken_info_no_kills"));
+			} else if (stacks > 8){
 				GLog.h(Messages.get(this, "weaken_info"));
 			}
 		}
@@ -367,11 +364,14 @@ public class AscensionChallenge extends Buff {
 	public static final String STACKS = "enemy_stacks";
 	public static final String DAMAGE = "damage_inc";
 
+	public static final String STACKS_LOWERED = "stacks_lowered";
+
 	@Override
 	public void storeInBundle(Bundle bundle) {
 		super.storeInBundle(bundle);
 		bundle.put(STACKS, stacks);
 		bundle.put(DAMAGE, damageInc);
+		bundle.put(STACKS_LOWERED, stacksLowered);
 	}
 
 	@Override
@@ -379,6 +379,12 @@ public class AscensionChallenge extends Buff {
 		super.restoreFromBundle(bundle);
 		stacks = bundle.getFloat(STACKS);
 		damageInc = bundle.getFloat(DAMAGE);
+		if (bundle.contains(STACKS_LOWERED)){
+			stacksLowered = bundle.getBoolean(STACKS_LOWERED);
+		//pre-v3.1 saves
+		} else {
+			stacksLowered = true;
+		}
 	}
 
 	//chars with this buff are not boosted by the ascension challenge

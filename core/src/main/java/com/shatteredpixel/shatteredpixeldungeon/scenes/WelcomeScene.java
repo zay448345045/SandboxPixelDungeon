@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,15 +29,16 @@ import com.shatteredpixel.shatteredpixeldungeon.GamesInProgress;
 import com.shatteredpixel.shatteredpixeldungeon.Rankings;
 import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.editor.server.TempFilesHandler;
 import com.shatteredpixel.shatteredpixeldungeon.effects.BannerSprites;
 import com.shatteredpixel.shatteredpixeldungeon.effects.Fireball;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Document;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Journal;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
-import com.shatteredpixel.shatteredpixeldungeon.ui.Archs;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
 import com.shatteredpixel.shatteredpixeldungeon.ui.StyledButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.TitleBackground;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndHardNotification;
 import com.watabou.NotAllowedInLua;
@@ -49,6 +50,7 @@ import com.watabou.noosa.Game;
 import com.watabou.noosa.Image;
 import com.watabou.noosa.audio.Music;
 import com.watabou.utils.FileUtils;
+import com.watabou.utils.RectF;
 
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
@@ -61,7 +63,7 @@ import java.util.concurrent.TimeoutException;
 @NotAllowedInLua
 public class WelcomeScene extends PixelScene {
 
-	private static final int LATEST_UPDATE = SandboxPixelDungeon.v3_0_0;
+	private static final int LATEST_UPDATE = SandboxPixelDungeon.v3_3_0;
 
 	//used so that the game does not keep showing the window forever if cleaning fails
 	private static boolean triedCleaningTemp = false;
@@ -74,9 +76,13 @@ public class WelcomeScene extends PixelScene {
 		final int previousVersion = v == 0 ? 1 : v;
 
 		if (!triedCleaningTemp && FileUtils.cleanTempFiles()){
+			String message = Messages.get(this, "save_warning");
+			message = message.replace("Shattered Pixel Dungeon", "Sandbox Pixel Dungeon");
+			message = message.replace("Shattered PD", "Sandbox PD");
+			message = message.replace("ShatteredPD", "SandboxPD");
 			add(new WndHardNotification(Icons.get(Icons.WARNING),
 					Messages.get(WndError.class, "title"),
-					Messages.get(this, "save_warning"),
+					message,
 					Messages.get(this, "continue"),
 					5){
 				@Override
@@ -95,7 +101,9 @@ public class WelcomeScene extends PixelScene {
 		
 		loadGamesInProgress();
 		
-		if (SandboxPixelDungeon.versionCode == previousVersion && !SPDSettings.intro() || true) {
+		TempFilesHandler.clearTempFiles();
+		
+		if (true) {
 			SandboxPixelDungeon.switchNoFade(TitleScene.class);
 			return;
 		}
@@ -109,21 +117,24 @@ public class WelcomeScene extends PixelScene {
 
 		int w = Camera.main.width;
 		int h = Camera.main.height;
+		RectF insets = getCommonInsets();
 
-		Archs archs = new Archs();
-		archs.setSize( w, h );
-		add( archs );
+		TitleBackground BG = new TitleBackground(w, h);
+		add( BG );
 
 		//darkens the arches
-		add(new ColorBlock(w, h, 0x88000000));
+		add(new ColorBlock(w, h, 0x44000000));
+
+		w -= insets.left + insets.right;
+		h -= insets.top + insets.bottom;
 
 		Image title = BannerSprites.get( BannerSprites.Type.PIXEL_DUNGEON );
 		add( title );
 
 		float topRegion = Math.max(title.height - 6, h*0.45f);
 
-		title.x = (w - title.width()) / 2f;
-		title.y = 2 + (topRegion - title.height()) / 2f;
+		title.x = insets.left + (w - title.width()) / 2f;
+		title.y = insets.top + 2 + (topRegion - title.height()) / 2f;
 
 		align(title);
 
@@ -175,10 +186,10 @@ public class WelcomeScene extends PixelScene {
 			}
 		};
 
-		float buttonY = Math.min(topRegion + (PixelScene.landscape() ? 60 : 120), h - 24);
+		float buttonY = insets.top + Math.min(topRegion + (PixelScene.landscape() ? 60 : 120), h - 24);
 
 		float buttonAreaWidth = landscape() ? PixelScene.MIN_WIDTH_L-6 : PixelScene.MIN_WIDTH_P-2;
-		float btnAreaLeft = (Camera.main.width - buttonAreaWidth) / 2f;
+		float btnAreaLeft = insets.left + (w - buttonAreaWidth) / 2f;
 		if (previousVersion != 0 && !SPDSettings.intro()){
 			StyledButton changes = new StyledButton(Chrome.Type.GREY_BUTTON_TR, Messages.get(TitleScene.class, "changes")){
 				@Override
@@ -218,6 +229,9 @@ public class WelcomeScene extends PixelScene {
 				message += "\n" + Messages.get(this, "patch_translations");
 
 			}
+			message = message.replace("Shattered Pixel Dungeon", "Sandbox Pixel Dungeon");
+			message = message.replace("Shattered PD", "Sandbox PD");
+			message = message.replace("ShatteredPD", "SandboxPD");
 
 		} else {
 			message = Messages.get(this, "what_msg");
@@ -226,7 +240,7 @@ public class WelcomeScene extends PixelScene {
 		text.text(message, Math.min(w-20, 300));
 		float titleBottom = title.y + title.height();
 		float textSpace = okay.top() - titleBottom - 4;
-		text.setPos((w - text.width()) / 2f, (titleBottom + 2) + (textSpace - text.height())/2);
+		text.setPos(insets.left + (w - text.width()) / 2f, (titleBottom + 2) + (textSpace - text.height())/2);
 		add(text);
 
 		if (SPDSettings.intro() && ControllerHandler.isControllerConnected()){
@@ -288,7 +302,7 @@ public class WelcomeScene extends PixelScene {
 			}
 			Dungeon.daily = Dungeon.dailyReplay = false;
 
-			if (previousVersion <= SandboxPixelDungeon.v2_3_2){
+			if (previousVersion <= SandboxPixelDungeon.v2_4_2){
 				Document.ADVENTURERS_GUIDE.findPage(Document.GUIDE_ALCHEMY);
 			}
 

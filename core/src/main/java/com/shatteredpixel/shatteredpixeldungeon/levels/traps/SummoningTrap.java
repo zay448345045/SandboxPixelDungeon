@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +32,10 @@ import com.shatteredpixel.shatteredpixeldungeon.journal.Bestiary;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
-import com.watabou.utils.*;
+import com.watabou.utils.Bundle;
+import com.watabou.utils.Function;
+import com.watabou.utils.PathFinder;
+import com.watabou.utils.Random;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -52,8 +55,10 @@ public class SummoningTrap extends Trap {
 
 	@Override
 	public void activate() {
+		
+		List<Mob> modifiableSpawnMobs = new ArrayList<>(spawnMobs);
 
-		boolean useCustomConfig = !spawnMobs.isEmpty();
+		boolean useCustomConfig = !modifiableSpawnMobs.isEmpty();
 
 		int nMobs = 1;
 		if (Random.Int( 2 ) == 0) {
@@ -63,8 +68,8 @@ public class SummoningTrap extends Trap {
 			}
 		}
 		if (useCustomConfig) {
-			nMobs = spawnMobs.size();
-			Random.shuffle(spawnMobs);
+			nMobs = modifiableSpawnMobs.size();
+			Random.shuffle(modifiableSpawnMobs);
 		}
 
 		ArrayList<Integer> candidates = new ArrayList<>();
@@ -98,7 +103,7 @@ public class SummoningTrap extends Trap {
 				boolean repeat;
 				int tries = 20;
 				do {
-					mob = useCustomConfig ? spawnMobs.get(index) : Dungeon.level.createMob();
+					mob = useCustomConfig ? modifiableSpawnMobs.get(index) : Dungeon.level.createMob();
 					index++;
 					tries--;
 					repeat = Char.hasProp(mob, Char.Property.LARGE) && !Dungeon.level.openSpace[point] || Barrier.stopChar(point, mob);
@@ -108,7 +113,9 @@ public class SummoningTrap extends Trap {
 			if (mob != null) {
 				mob = (Mob) mob.getCopy();
 				if (useCustomConfig && mob instanceof MobBasedOnDepth) ((MobBasedOnDepth) mob).setLevel(Dungeon.depth);
-				mob.state = mob.WANDERING;
+				if (mob.state != mob.PASSIVE) {
+					mob.state = mob.WANDERING;
+				}
 				mob.pos = point;
 				mob.setFirstAddedToTrue_ACCESS_ONLY_FOR_CUSTOMLEVELS_THAT_ARE_ENTERED_FOR_THE_FIRST_TIME();
 				GameScene.add(mob, DELAY);
@@ -149,9 +156,7 @@ public class SummoningTrap extends Trap {
 	@Override
 	public void restoreFromBundle(Bundle bundle) {
 		super.restoreFromBundle(bundle);
-		Collection<Bundlable> collection = bundle.getCollection( SPAWN_MOBS );
-		for (Bundlable b : collection)
-			spawnMobs.add((Mob) b);
+		spawnMobs = new ArrayList<>((Collection<Mob>) ((Collection<?>) bundle.getCollection( SPAWN_MOBS )));
 	}
 
 	@Override

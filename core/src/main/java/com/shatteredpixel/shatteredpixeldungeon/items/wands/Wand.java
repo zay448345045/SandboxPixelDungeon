@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Blindness;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Degrade;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Invisibility;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.LostInventory;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MagicImmune;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Recharging;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Regeneration;
@@ -48,6 +49,7 @@ import com.shatteredpixel.shatteredpixeldungeon.effects.Flare;
 import com.shatteredpixel.shatteredpixeldungeon.effects.FloatingText;
 import com.shatteredpixel.shatteredpixeldungeon.effects.MagicMissile;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.items.RechargeRule;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.TalismanOfForesight;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.Bag;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.MagicalHolster;
@@ -231,7 +233,7 @@ public abstract class Wand extends Item {
 
 		if (Dungeon.hero.subClass == HeroSubClass.PRIEST && target.buff(GuidingLight.Illuminated.class) != null) {
 			target.buff(GuidingLight.Illuminated.class).detach();
-			target.damage(Dungeon.hero.lvl, GuidingLight.INSTANCE);
+			target.damage(Dungeon.hero.lvl+5, GuidingLight.INSTANCE);
 		}
 
 		if (target.alignment != Char.Alignment.ALLY
@@ -545,7 +547,8 @@ public abstract class Wand extends Item {
 				&& Random.Int(10) < Dungeon.hero.pointsInTalent(Talent.CLEANSE)){
 			boolean removed = false;
 			for (Buff b : curUser.buffs()) {
-				if (b.type == Buff.buffType.NEGATIVE) {
+				if (b.type == Buff.buffType.NEGATIVE
+						&& !(b instanceof LostInventory)) {
 					b.detach();
 					removed = true;
 				}
@@ -809,17 +812,6 @@ public abstract class Wand extends Item {
 		}
 	};
 
-	public enum RechargeRule {
-		ALWAYS, ONLY_WITH_BUFF, NEVER;
-
-		public boolean normal() {
-			return this == ALWAYS;
-		}
-
-		public boolean rechargeBuff() {
-			return this == ALWAYS || this == ONLY_WITH_BUFF;
-		}
-	}
 
 	public class Charger extends Buff {
 		
@@ -865,7 +857,7 @@ public abstract class Wand extends Item {
 
 		private void recharge(){
 
-			if (rechargeRule.normal()) {
+			if (rechargeRule.normalRechargeable()) {
 				if (Regeneration.regenOn()) {
 
 					int missingCharges = maxCharges - curCharges;
@@ -879,7 +871,7 @@ public abstract class Wand extends Item {
 				}
 			}
 
-			if (rechargeRule.rechargeBuff()) {
+			if (rechargeRule.rechargeableByBuff()) {
 				for (Recharging bonus : target.buffs(Recharging.class)) {
 					if (bonus != null && bonus.remainder() > 0f) {
 						partialCharge += CHARGE_BUFF_BONUS * bonus.remainder();

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ package com.shatteredpixel.shatteredpixeldungeon;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Languages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
+import com.shatteredpixel.shatteredpixeldungeon.services.server.ServerCommunication;
 import com.shatteredpixel.shatteredpixeldungeon.services.updates.Updates;
 import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
@@ -76,16 +77,16 @@ public class SPDSettings extends GameSettings {
 		return getLong( KEY_LAST_UPLOADED_TO_SERVER_TIMER, 0 ) < System.currentTimeMillis();
 	}
 
-	public static void increaseUploadTimer() {
-		put( KEY_LAST_UPLOADED_TO_SERVER_TIMER, Math.max(getLong( KEY_LAST_UPLOADED_TO_SERVER_TIMER, 0 ), System.currentTimeMillis()) + 2*1000*3600 );//2h
+	public static void increaseUploadTimer(ServerCommunication.UploadType uploadType) {
+		if (uploadType == ServerCommunication.UploadType.CHANGE) {
+			put( KEY_LAST_UPLOADED_TO_SERVER_TIMER, Math.max(getLong( KEY_LAST_UPDATED_TO_SERVER_TIMER, 0 ), System.currentTimeMillis()) + 600*1000 );//10 min
+		} else {
+			put( KEY_LAST_UPLOADED_TO_SERVER_TIMER, Math.max(getLong( KEY_LAST_UPLOADED_TO_SERVER_TIMER, 0 ), System.currentTimeMillis()) + 2*1000*3600 );//2h
+		}
 	}
 
 	public static boolean canUpdateToServer() {
-		return getLong( KEY_LAST_UPDATED_TO_SERVER_TIMER, 0 ) < System.currentTimeMillis();
-	}
-
-	public static void increaseUpdateTimer() {
-		put( KEY_LAST_UPLOADED_TO_SERVER_TIMER, Math.max(getLong( KEY_LAST_UPDATED_TO_SERVER_TIMER, 0 ), System.currentTimeMillis()) + 600*1000 );//10 min
+		return getLong(KEY_LAST_UPDATED_TO_SERVER_TIMER, 0) < System.currentTimeMillis();
 	}
 
 	public static String uuid() {
@@ -107,9 +108,8 @@ public class SPDSettings extends GameSettings {
 
 	//Display
 	
-	public static final String KEY_FULLSCREEN	= "fullscreen";
-	public static final String KEY_LANDSCAPE	= "landscape";
-	public static final String KEY_POWER_SAVER 	= "power_saver";
+	public static final String KEY_FULLSCREEN	= "fullscreen"; //used to hide navbars on mobile
+	public static final String KEY_LANDSCAPE	= "force_landscape";
 	public static final String KEY_ZOOM			= "zoom";
 	public static final String KEY_BRIGHTNESS	= "brightness";
 	public static final String KEY_GRID 	    = "visual_grid";
@@ -124,31 +124,16 @@ public class SPDSettings extends GameSettings {
 	}
 	
 	public static boolean fullscreen() {
-		return getBoolean( KEY_FULLSCREEN, DeviceCompat.isDesktop() );
+		return getBoolean( KEY_FULLSCREEN, true );
 	}
-	
+
 	public static void landscape( boolean value ){
 		put( KEY_LANDSCAPE, value );
-		((SandboxPixelDungeon) SandboxPixelDungeon.instance).updateDisplaySize();
+		((SandboxPixelDungeon)SandboxPixelDungeon.instance).updateDisplaySize();
 	}
-	
-	//can return null because we need to directly handle the case of landscape not being set
-	// as there are different defaults for different devices
-	public static Boolean landscape(){
-		if (contains(KEY_LANDSCAPE)){
-			return getBoolean(KEY_LANDSCAPE, false);
-		} else {
-			return null;
-		}
-	}
-	
-	public static void powerSaver( boolean value ){
-		put( KEY_POWER_SAVER, value );
-		((SandboxPixelDungeon) SandboxPixelDungeon.instance).updateDisplaySize();
-	}
-	
-	public static boolean powerSaver(){
-		return getBoolean( KEY_POWER_SAVER, false );
+
+	public static boolean landscape(){
+		return getBoolean(KEY_LANDSCAPE, false);
 	}
 	
 	public static void zoom( int value ) {
@@ -279,7 +264,8 @@ public class SPDSettings extends GameSettings {
 
 	public static boolean systemFont(){
 		return getBoolean(KEY_SYSTEMFONT,
-				(language() == Languages.KOREAN || language() == Languages.CHINESE || language() == Languages.JAPANESE));
+				(language() == Languages.CHI_SMPL || language() == Languages.CHI_TRAD
+						|| language() == Languages.KOREAN || language() == Languages.JAPANESE));
 	}
 
 	public static void vibration(boolean value){

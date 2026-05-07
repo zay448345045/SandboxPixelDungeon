@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ public class MineSecretRoom extends SecretRoom {
 			Painter.fill(level, this, 1, Terrain.MINE_CRYSTAL);
 		} else if (questType == BlacksmithQuest.GNOLL) {
 			Painter.fill( level, this, 1, Terrain.EMPTY_SP );
-			level.drop(new DarkGold().quantity(Random.NormalIntRange(3, 5)), level.pointToCell(center())).type = Heap.Type.CHEST;
+			level.drop(new DarkGold().quantity(Random.NormalIntRange(4, 5)), level.pointToCell(center())).type = Heap.Type.CHEST;
 			return;
 		} else if (questType == BlacksmithQuest.FUNGI) {
 			Painter.fill(level, this, 1, Terrain.HIGH_GRASS);
@@ -61,7 +61,7 @@ public class MineSecretRoom extends SecretRoom {
 			Painter.fill(level, this, 1, Terrain.EMPTY);
 		}
 
-		int goldAmount = Random.NormalIntRange(3, 5);
+		int goldAmount = Random.NormalIntRange(4, 5);
 
 		for (int i = 0; i < goldAmount; i++){
 			int cell;

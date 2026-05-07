@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ public enum HeroClass {
         HeroSettings.HeroStartItemsData generalItems = Dungeon.customDungeon.startItems[0].getCopy();
         HeroSettings.HeroStartItemsData classItems = Dungeon.customDungeon.startItems[getIndex() + 1].getCopy();
 
-        hero.internalSpriteClass = classItems.spriteClass == null ? generalItems.spriteClass : classItems.spriteClass;
+        hero.internalSpriteClass = classItems.spriteWrapper.definesSprite() ? classItems.spriteWrapper : generalItems.spriteWrapper;
 
         addProperties(hero, generalItems.properties);
         addProperties(hero, classItems.properties);
@@ -159,9 +159,14 @@ public enum HeroClass {
         collectStartItems(classItems);
         collectStartItems(generalItems);
 
+		int maxLevel = classItems.maxLvl == 0 ? generalItems.maxLvl : classItems.maxLvl;
+		if (maxLevel != 0) {
+			hero.maxLevel = Math.max(1, maxLevel + Hero.DEFAULT_MAX_LEVEL);
+		}
+		
         int plusLvl = generalItems.plusLvl + classItems.plusLvl;
         if (plusLvl != 0) {
-            hero.lvl += plusLvl;
+			hero.lvl = Math.min(hero.maxLevel, hero.lvl + plusLvl);
             hero.updateHT(true);
             hero.attackSkill += plusLvl;
             hero.defenseSkill += plusLvl;
@@ -282,7 +287,7 @@ public enum HeroClass {
 		}
 		
 		ThrowingStone stones = new ThrowingStone();
-		stones.quantity(3);
+		stones.identify();
 		stones.reservedQuickslot = 1;
 		data.items.add(stones);
 		
@@ -314,7 +319,7 @@ public enum HeroClass {
 		}
 		
 		ThrowingKnife knives = new ThrowingKnife();
-		knives.quantity(3);
+		knives.identify();
 		knives.reservedQuickslot = nextQuickslot;
 	}
 	
@@ -340,7 +345,7 @@ public enum HeroClass {
 		}
 		
 		ThrowingSpike spikes = new ThrowingSpike();
-		spikes.quantity(2);
+		spikes.identify().quantity(2);//set quantity is 3, but Duelist starts with 2
 		spikes.reservedQuickslot = nextQuickslot++;
 		data.items.add(spikes);
 	}
@@ -496,6 +501,15 @@ public enum HeroClass {
 	public HeroSubClass[] subClasses() {
 		return subClasses;
 	}
+	
+	public boolean areAllSubClassesDisabled() {
+		for (HeroSubClass cls : subClasses()) {
+			if (Dungeon.customDungeon.heroSubClassesEnabled[cls.getIndex()]) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	public ArmorAbility[] armorAbilities(){
 		switch (this) {
@@ -526,7 +540,7 @@ public enum HeroClass {
 				return Assets.Sprites.HUNTRESS;
 			case DUELIST:
 				return Assets.Sprites.DUELIST;
-			case CLERIC: //TODO CLERIC finish sprite sheet
+			case CLERIC:
 				return Assets.Sprites.CLERIC;
 		}
 	}
@@ -543,7 +557,7 @@ public enum HeroClass {
 				return Assets.Splashes.HUNTRESS;
 			case DUELIST:
 				return Assets.Splashes.DUELIST;
-			case CLERIC: //TODO CLERIC finish cleric splash
+			case CLERIC:
 				return Assets.Splashes.CLERIC;
 		}
 	}

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.Chasm;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.SentryRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.traps.LooseItemsTrap;
+import com.shatteredpixel.shatteredpixeldungeon.levels.traps.Trap;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.plants.Swiftthistle;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
@@ -100,6 +101,7 @@ import com.shatteredpixel.shatteredpixeldungeon.sprites.CharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.ui.BossHealthBar;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndQuest;
+import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.audio.Sample;
 import com.watabou.utils.BArray;
@@ -129,6 +131,7 @@ public abstract class Mob extends Char implements Customizable {
 
 	public AiState SLEEPING     = new Sleeping();
 	public AiState HUNTING		= new Hunting();
+	public AiState INVESTIGATING= new Investigating();
 	public AiState WANDERING	= new Wandering();
 	public AiState FLEEING		= new Fleeing();
 	public AiState PASSIVE		= new Passive();
@@ -164,7 +167,7 @@ public abstract class Mob extends Char implements Customizable {
 	public int playerAlignment;
 	
 	public int EXP = 1;
-	public int maxLvl = Hero.MAX_LEVEL-1;
+	public int maxLvl = Hero.DEFAULT_MAX_LEVEL -1;
 	
 	public Char enemy;
 	protected int enemyID = -1; //used for save/restore
@@ -176,6 +179,7 @@ public abstract class Mob extends Char implements Customizable {
 	protected boolean firstAdded = true;
 	protected boolean hpSet = false;
 
+	@NotAllowedInLua
 	public void setFirstAddedToTrue_ACCESS_ONLY_FOR_CUSTOMLEVELS_THAT_ARE_ENTERED_FOR_THE_FIRST_TIME() {
 		firstAdded = true;
 	}
@@ -269,6 +273,8 @@ public abstract class Mob extends Char implements Customizable {
 			bundle.put( STATE, Sleeping.TAG );
 		} else if (state == WANDERING) {
 			bundle.put( STATE, Wandering.TAG );
+		} else if (state == INVESTIGATING) {
+			bundle.put( STATE, Investigating.TAG );
 		} else if (state == HUNTING) {
 			bundle.put( STATE, Hunting.TAG );
 		} else if (state == FLEEING) {
@@ -283,17 +289,17 @@ public abstract class Mob extends Char implements Customizable {
 
         Mob defaultMob = DefaultStatsCache.getDefaultObject(getClass());
         if (defaultMob != null) {
-            if (defaultMob.defenseSkill != defenseSkill) bundle.put(DEFENSE_SKILL, defenseSkill);
-            if (defaultMob.attackSkill != attackSkill) bundle.put(ATTACK_SKILL, attackSkill);
-            if (defaultMob.damageRollMin != damageRollMin) bundle.put(DAMAGE_ROLL_MIN, damageRollMin);
-            if (defaultMob.damageRollMax != damageRollMax) bundle.put(DAMAGE_ROLL_MAX, damageRollMax);
-            if (defaultMob.specialDamageRollMin != specialDamageRollMin) bundle.put(SPECIAL_DAMAGE_ROLL_MIN, specialDamageRollMin);
-            if (defaultMob.specialDamageRollMax != specialDamageRollMax) bundle.put(SPECIAL_DAMAGE_ROLL_MAX, specialDamageRollMax);
+            if (defaultMob.defenseSkill != defenseSkill || storeEverythingInBundle) bundle.put(DEFENSE_SKILL, defenseSkill);
+            if (defaultMob.attackSkill != attackSkill || storeEverythingInBundle) bundle.put(ATTACK_SKILL, attackSkill);
+            if (defaultMob.damageRollMin != damageRollMin || storeEverythingInBundle) bundle.put(DAMAGE_ROLL_MIN, damageRollMin);
+            if (defaultMob.damageRollMax != damageRollMax || storeEverythingInBundle) bundle.put(DAMAGE_ROLL_MAX, damageRollMax);
+            if (defaultMob.specialDamageRollMin != specialDamageRollMin || storeEverythingInBundle) bundle.put(SPECIAL_DAMAGE_ROLL_MIN, specialDamageRollMin);
+            if (defaultMob.specialDamageRollMax != specialDamageRollMax || storeEverythingInBundle) bundle.put(SPECIAL_DAMAGE_ROLL_MAX, specialDamageRollMax);
             if (defaultMob.tilesBeforeWakingUp != tilesBeforeWakingUp) bundle.put(TILES_BEFORE_WAKING_UP, tilesBeforeWakingUp);
-            if (defaultMob.EXP != EXP) bundle.put(XP, EXP);
-            if (defaultMob.statsScale != statsScale) bundle.put(STATS_SCALE, statsScale);
+            if (defaultMob.EXP != EXP || storeEverythingInBundle) bundle.put(XP, EXP);
+            if (defaultMob.statsScale != statsScale || storeEverythingInBundle) bundle.put(STATS_SCALE, statsScale);
 
-            if (defaultMob.spriteClass != spriteClass) bundle.put(SPRITE, spriteClass);
+            if (defaultMob.spriteClass != spriteClass || storeEverythingInBundle) bundle.put(SPRITE, spriteClass);
         } else if (MobSpriteItem.canChangeSprite(this)) {
 			if (Reflection.newInstance(getClass()).spriteClass != spriteClass) bundle.put(SPRITE, spriteClass);
 		}
@@ -332,6 +338,8 @@ public abstract class Mob extends Char implements Customizable {
 			this.state = SLEEPING;
 		} else if (state.equals( Wandering.TAG )) {
 			this.state = WANDERING;
+		} else if (state.equals( Investigating.TAG )) {
+			this.state = INVESTIGATING;
 		} else if (state.equals( Hunting.TAG )) {
 			this.state = HUNTING;
 		} else if (state.equals( Fleeing.TAG )) {
@@ -405,7 +413,7 @@ public abstract class Mob extends Char implements Customizable {
 	}
 
 	@Override
-	public Actor getCopy() {
+	public Mob getCopy() {
 		Mob mob = (Mob) super.getCopy();
 		mob.firstAdded = true;
 		return mob;
@@ -416,7 +424,9 @@ public abstract class Mob extends Char implements Customizable {
 		if (template == null) return;
 		if (getClass() != template.getClass()) return;
 		Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
 		bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
 		bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
 		int pos = this.pos;
@@ -437,7 +447,7 @@ public abstract class Mob extends Char implements Customizable {
 	public CharSprite createSprite() {
 		if (this instanceof CustomMobClass) {
 			CustomMob customMob = CustomObjectManager.getUserContent(((CustomMobClass) this).getIdentifier(), CustomMob.class);
-			if (customMob.sprite != null) {
+			if (customMob != null && customMob.sprite != null) {
 				CharSprite result = customMob.sprite.getActualCustomCharSpriteOrNull();
 				if (result != null) return result;
 			}
@@ -463,6 +473,7 @@ public abstract class Mob extends Char implements Customizable {
 		} else {
 			sprite.hideAlert();
 			sprite.hideLost();
+			sprite.hideInvestigate();
 		}
 		
 		if (paralysed > 0) {
@@ -477,7 +488,8 @@ public abstract class Mob extends Char implements Customizable {
 		
 		enemy = chooseEnemy();
 		
-		boolean enemyInFOV = enemy != null && enemy.isAlive() && (fieldOfView[enemy.pos] && enemy.invisible <= 0 || following || buff(MindVision.class) != null);
+		boolean enemyInFOV = enemy != null && enemy.isAlive() &&
+				(fieldOfView[enemy.pos] && enemy.invisible <= 0 || following || buff(MindVision.class) != null && enemy.buff(MindVisionImmunity.class) == null);
 		if (enemyInFOV && target == -1 && !justAlerted) justAlerted = true;
 
 		//prevents action, but still updates enemy seen status
@@ -611,7 +623,7 @@ public abstract class Mob extends Char implements Customizable {
 				//try to find an enemy mob to attack first.
 				for (Mob mob : Dungeon.level.mobs)
 					if (mob.alignment == Alignment.ENEMY && mob != this
-							&& (fieldOfView[mob.pos] && mob.invisible <= 0 || hasMindVision)) {
+							&& (fieldOfView[mob.pos] && mob.invisible <= 0 || hasMindVision && mob.buff(MindVisionImmunity.class) == null)) {
 						enemies.add(mob);
 					}
 				
@@ -769,16 +781,13 @@ public abstract class Mob extends Char implements Customizable {
 		if (Char.hasProp(this, Property.LARGE) && !Dungeon.level.openSpace[cell]){
 			return false;
 		}
-		if (Char.hasProp(this, Property.IMMOVABLE) && (!(this instanceof NPC) || this instanceof Ghost || this instanceof SentryRoom.Sentry)) {
-			return false;//also in Dungeon.java line 1078 (findPassable())
-		}
-
-		return true;
+		//also in Dungeon.java line 1078 (findPassable())
+		return !Char.hasProp(this, Property.IMMOVABLE) || (this instanceof NPC && !(this instanceof Ghost) && !(this instanceof SentryRoom.Sentry));//also in Dungeon.java line 1078 (findPassable())
 	}
 
 	protected boolean getCloser( int target ) {
 		
-		if (rooted || target == pos) {
+		if (rooted || target == pos || !Dungeon.level.insideMap(target)) {
 			return false;
 		}
 
@@ -994,10 +1003,11 @@ public abstract class Mob extends Char implements Customizable {
 
 	@Override
 	public void onAttackComplete() {
-		attack( enemy );
-		Invisibility.dispel(this);
-		spend( attackDelay() );
-		super.onAttackComplete();
+		//apply changes here to Scorpio#onZapComplete!
+		attack( enemy );//
+		Invisibility.dispel(this);//
+		spend( attackDelay() );//
+		super.onAttackComplete();//
 	}
 	
 	@Override
@@ -1107,6 +1117,9 @@ public abstract class Mob extends Char implements Customizable {
 
 	@Override
 	public boolean isImmune(Class effect) {
+		if (CustomDungeon.isEditing()) {
+			return false;//not immune to anything
+		}
 		if (effect == Burning.class
 				&& glyphArmor != null
 				&& glyphArmor.hasGlyph(Brimstone.class, this)){
@@ -1239,7 +1252,7 @@ public abstract class Mob extends Char implements Customizable {
 				// after this enemy kills which reduce the amulet curse still grant 10 effective xp
 				// for the purposes of on-exp effects, see AscensionChallenge.processEnemyKill
 				if (Dungeon.hero.buff(AscensionChallenge.class) != null &&
-						exp == 0 && maxLvl > 0 && EXP > 0 && Dungeon.hero.lvl < Hero.MAX_LEVEL){
+						exp == 0 && maxLvl > 0 && EXP > 0 && Dungeon.hero.lvl < Dungeon.hero.maxLevel){
 					exp = Math.round(10 * spawningWeight());
 				}
 
@@ -1265,6 +1278,11 @@ public abstract class Mob extends Char implements Customizable {
 		}
 
 		if (alignment == Alignment.ENEMY){
+			if (buff(Trap.HazardAssistTracker.class) != null){
+				Statistics.hazardAssistedKills++;
+				Badges.validateHazardAssists();
+			}
+
 			rollToDropLoot();
 
 			if (cause == Dungeon.hero || cause instanceof Weapon || cause instanceof Weapon.Enchantment){
@@ -1413,7 +1431,7 @@ public abstract class Mob extends Char implements Customizable {
 
 	public List<Item> createActualLoot() {
 		if (loot instanceof ItemsWithChanceDistrComp.RandomItemData) return ((ItemsWithChanceDistrComp.RandomItemData) loot).generateLoot();
-		else return Arrays.asList(createLoot());
+		else return Collections.singletonList(createLoot());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1733,32 +1751,34 @@ public abstract class Mob extends Char implements Customizable {
 			//can be awoken by the least stealthy hostile present, not necessarily just our target
 			if (enemyInFOV || (enemy != null && enemy.invisible > 0)) {
 
-				float closestHostileDist = Float.POSITIVE_INFINITY;
+				float highestChance = Float.POSITIVE_INFINITY;
+				Char closestHostile = null;
 
 				for (Char ch : Actor.chars()){
 					if (fieldOfView[ch.pos] && ch.invisible == 0 && ch.alignment != alignment && ch.alignment != Alignment.NEUTRAL){
-						float chDist = ch.stealth() + distance(ch);
+						float bestChance = detectionChance(ch);
 						//silent steps rogue talent, which also applies to rogue's shadow clone
 						if ((ch instanceof Hero || ch instanceof ShadowClone.ShadowAlly)
 								&& Dungeon.hero.hasTalent(Talent.SILENT_STEPS)){
 							if (distance(ch) >= 4 - Dungeon.hero.pointsInTalent(Talent.SILENT_STEPS)) {
-								chDist = Float.POSITIVE_INFINITY;
+								bestChance = Float.POSITIVE_INFINITY;
 							}
 						}
 
-						if (distance( enemy) > tilesBeforeWakingUp ) chDist = Float.POSITIVE_INFINITY;
+						if (distance( enemy) > tilesBeforeWakingUp ) bestChance = Float.POSITIVE_INFINITY;
 
 						//flying characters are naturally stealthy
 						if (ch.isFlying() && distance(ch) >= 2){
-							chDist = Float.POSITIVE_INFINITY;
+							bestChance = Float.POSITIVE_INFINITY;
 						}
-						if (chDist < closestHostileDist){
-							closestHostileDist = chDist;
+						if (bestChance < highestChance){
+							highestChance = bestChance;
+							closestHostile = ch;
 						}
 					}
 				}
 
-				if (Random.Float( closestHostileDist ) < 1) {
+				if (closestHostile != null && Random.Float() < detectionChance(closestHostile)) {
 					awaken(enemyInFOV);
 					if (state == SLEEPING){
 						spend(TICK); //wait if we can't wake up for some reason
@@ -1772,6 +1792,11 @@ public abstract class Mob extends Char implements Customizable {
 			spend( TICK );
 
 			return true;
+		}
+
+		//chance is 1 in (distance + stealth)
+		protected float detectionChance( Char enemy ){
+			return 1 / (distance( enemy ) + enemy.stealth());
 		}
 
 		protected void awaken( boolean enemyInFOV ){
@@ -1805,7 +1830,7 @@ public abstract class Mob extends Char implements Customizable {
 
 		@Override
 		public boolean act( boolean enemyInFOV, boolean justAlerted ) {
-			if (enemyInFOV && (justAlerted || distance( enemy ) <= tilesBeforeWakingUp && Random.Float( distance( enemy ) / 2f + enemy.stealth() ) < 1)) {
+			if (enemyInFOV && (justAlerted || distance( enemy ) <= tilesBeforeWakingUp && Random.Float() < detectionChance(enemy))) {
 
 				return noticeEnemy();
 
@@ -1816,7 +1841,12 @@ public abstract class Mob extends Char implements Customizable {
 
 			}
 		}
-		
+
+		//chance is 1 in (distance/2 + stealth)
+		protected float detectionChance( Char enemy ){
+			return 1 / (distance( enemy ) / 2f + enemy.stealth());
+		}
+
 		protected boolean noticeEnemy(){
 			enemySeen = true;
 			
@@ -1870,9 +1900,6 @@ public abstract class Mob extends Char implements Customizable {
 
 		public static final String TAG	= "HUNTING";
 
-		//prevents rare infinite loop cases
-		private boolean recursing = false;
-
 		@Override
 		public boolean act( boolean enemyInFOV, boolean justAlerted ) {
 			enemySeen = enemyInFOV;
@@ -1892,22 +1919,8 @@ public abstract class Mob extends Char implements Customizable {
 
 				//if we cannot attack our target, but were hit by something else that
 				// is visible and attackable or closer, swap targets
-				if (!recentlyAttackedBy.isEmpty()){
-					boolean swapped = false;
-					for (Char ch : recentlyAttackedBy){
-						if (ch != null && ch.isActive() && Actor.chars().contains(ch) && alignment != ch.alignment && fieldOfView[ch.pos] && ch.invisible == 0 && !isCharmedBy(ch)) {
-							if (canAttack(ch) || enemy == null || Dungeon.level.distance(pos, ch.pos) < Dungeon.level.distance(pos, enemy.pos)) {
-								enemy = ch;
-								target = ch.pos;
-								enemyInFOV = true;
-								swapped = true;
-							}
-						}
-					}
-					recentlyAttackedBy.clear();
-					if (swapped){
-						return act( enemyInFOV, justAlerted );
-					}
+				if (handleRecentAttackers()){
+					return act( true, justAlerted );
 				}
 
 				if (enemyInFOV) {
@@ -1926,48 +1939,101 @@ public abstract class Mob extends Char implements Customizable {
 
 				} else {
 
-					ArrowCell arrowCell = Dungeon.level.arrowCells.get(pos);
-					if (arrowCell != null && !arrowCell.allowsWaiting(Mob.this)) {
-						List<Integer> candidates = new ArrayList<>();
-						for (int i : PathFinder.NEIGHBOURS8) {
-							if (arrowCell.allowsDirectionLeaving(i, Mob.this) && cellIsPathable(pos + i)) {
-								candidates.add(pos + i);
-							}
-						}
-						if (!candidates.isEmpty() && getCloser(Random.element(candidates))) {
-							spend( 1 / speed() );
-							return moveSprite( oldPos,  pos );
-						}
-					}
-
-					//if moving towards an enemy isn't possible, try to switch targets to another enemy that is closer
-					//unless we have already done that and still can't move toward them, then move on.
-					if (!recursing) {
-						Char oldEnemy = enemy;
-						enemy = null;
-						enemy = chooseEnemy();
-						if (enemy != null && enemy != oldEnemy) {
-							recursing = true;
-							boolean result = act(enemyInFOV, justAlerted);
-							recursing = false;
-							return result;
-						}
-					}
-
-					spend( TICK );
-					if (!enemyInFOV) {
-						looseEnemy();
-					}
-					return true;
+					return handleUnreachableTarget(enemyInFOV, justAlerted);
 				}
 			}
 		}
 
-		protected void looseEnemy(){
-			sprite.showLost();
-			state = WANDERING;
-			target = following ? Dungeon.hero.pos : ((Wandering)WANDERING).randomDestination();
+		protected boolean handleRecentAttackers(){
+			boolean swapped = false;
+			if (!recentlyAttackedBy.isEmpty()){
+				for (Char ch : recentlyAttackedBy){
+					if (ch != null && ch.isActive() && Actor.chars().contains(ch) && alignment != ch.alignment && fieldOfView[ch.pos] && ch.invisible == 0 && !isCharmedBy(ch)) {
+						if (canAttack(ch) || enemy == null || Dungeon.level.distance(pos, ch.pos) < Dungeon.level.distance(pos, enemy.pos)) {
+							enemy = ch;
+							target = ch.pos;
+							swapped = true;
+						}
+					}
+				}
+				recentlyAttackedBy.clear();
+			}
+			return swapped;
 		}
+
+		//prevents rare infinite loop cases
+		protected boolean recursing = false;
+
+		//Try to switch targets to another enemy that is closer or reachable
+		//unless we have already done that and still can't move toward them, then move on.
+		protected boolean handleUnreachableTarget(boolean enemyInFOV, boolean justAlerted){
+			if (!recursing) {
+				Char oldEnemy = enemy;
+				enemy = null;
+				enemy = chooseEnemy();
+				if (enemy != null && enemy != oldEnemy) {
+					recursing = true;
+					boolean result = act(enemyInFOV, justAlerted);
+					recursing = false;
+					return result;
+				}
+			}
+			
+			//if we are on an ArrowCell that disallows waiting:
+			ArrowCell arrowCell = Dungeon.level.arrowCells.get(pos);
+			if (arrowCell != null && !arrowCell.allowsWaiting(Mob.this)) {
+				List<Integer> candidates = new ArrayList<>();
+				for (int i : PathFinder.NEIGHBOURS8) {
+					if (arrowCell.allowsDirectionLeaving(i, Mob.this) && cellIsPathable(pos + i)) {
+						candidates.add(pos + i);
+					}
+				}
+				int oldPos = pos;
+				if (!candidates.isEmpty() && getCloser(Random.element(candidates))) {
+					spend( 1 / speed() );
+					return moveSprite( oldPos,  pos );
+				}
+			}
+
+			spend( TICK );
+			if (!enemyInFOV) {
+				looseEnemy();
+			}
+			return true;
+		}
+	}
+	
+	protected void looseEnemy(){
+		sprite.showLost();
+		state = WANDERING;
+		target = following ? Dungeon.hero.pos : ((Wandering)WANDERING).randomDestination();
+	}
+	
+	//essentially a more aggressive version of wandering, where target pos is updated like hunting
+	//not currently used directly by mobs outside of the vault, which also add more behaviour here
+	protected class Investigating extends Wandering {
+		
+		public static final String TAG	= "INVESTIGATING";
+		
+		@Override
+		public boolean act(boolean enemyInFOV, boolean justAlerted) {
+			if (enemyInFOV){
+				target = enemy.pos;
+			} else {
+				//we lose our target BEFORE reaching their last known position
+				if (Dungeon.level.distance(pos, target) <= 1){
+					sprite.showLost();
+					state = WANDERING;
+					target = ((Mob.Wandering)WANDERING).randomDestination();
+					spend( TICK );
+					return true;
+				}
+			}
+			return super.act(enemyInFOV, justAlerted);
+		}
+		
+		//same detection chance as wandering
+		
 	}
 
 	protected class Fleeing implements AiState {
@@ -2035,7 +2101,7 @@ public abstract class Mob extends Char implements Customizable {
 	}
 	
 	
-	private static ArrayList<Mob> heldAllies = new ArrayList<>();
+	private static final ArrayList<Mob> heldAllies = new ArrayList<>();
 
 	public static void holdAllies( Level level ){
 		holdAllies(level, Dungeon.hero.pos);

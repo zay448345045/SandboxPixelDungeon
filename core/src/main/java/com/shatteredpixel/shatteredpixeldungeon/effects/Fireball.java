@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -137,6 +137,11 @@ public class Fireball extends Component {
 				(int) GameMath.gate(0, red - 20, 255) * 256 * 256 +
 						(int) GameMath.gate(0, green + 30, 255) * 256 +
 						(int) GameMath.gate(0, blue + 40, 255);
+	}
+	
+	public void alpha(float alpha) {
+		bLight.am = alpha;
+		fLight.am = alpha;
 	}
 
 	public static class Flame extends Image {

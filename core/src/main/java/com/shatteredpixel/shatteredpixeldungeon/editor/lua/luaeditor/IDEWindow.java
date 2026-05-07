@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -616,9 +616,7 @@ public class IDEWindow extends Component {
 				protected void onClick() {
 					DungeonScene.show(new OutsideSpMenuPopup(
 							(int) ((x + btnOpenMenu.width() + 2 - camera().width / 2f)),
-					(int) (y - camera().height / 2f) - 3) {
-
-					});
+					(int) (y - camera().height / 2f) - 3));
 				}
 
 				@Override

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -354,7 +354,7 @@ public class Potion extends Item {
 	
 	public void setKnown() {
 		if (!anonymous) {
-			if (!isKnown()) {
+			if (!isKnown() && handler != null) {
 				handler.know(this);
 				updateQuickslot();
 			}
@@ -575,7 +575,7 @@ public class Potion extends Item {
 					seeds.add((Class<? extends Plant.Seed>) i.getClass());
 				}
 			}
-			if (seeds.size() == 1) {
+			if (seeds.size() == 1 && !Dungeon.customDungeon.blockedRecipeResults.contains(types.get(seeds.get(0)))) {
 				//this potion is automatically identified
 				Potion output = Reflection.newInstance(types.get(seeds.get(0)));
 				output.anonymize();

@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,9 @@ import com.badlogic.gdx.files.FileHandle;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.LuaGlobals;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
 import com.watabou.NotAllowedInLua;
+import com.watabou.utils.Reflection;
 import org.luaj.vm2.LuaError;
+import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.Varargs;
 import org.luaj.vm2.lib.VarArgFunction;
@@ -37,39 +39,45 @@ import org.luaj.vm2.lib.jse.CoerceLuaToJava;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class LuaRestrictionProxy extends LuaValue {
 
 	private final Object javaObject; // Original Java object
 
-	private static final Map<Class<?>, Map<String, Map<Integer, Method>> > ACCESSIBLE_METHODS_MAP = new HashMap<>();
+	private static final Map<Class<?>, Map<String, Set<Method>> > ACCESSIBLE_METHODS_MAP = new HashMap<>();
 
 	public LuaRestrictionProxy(Object javaObject) {
 		this.javaObject = javaObject;
 
 		if (!ACCESSIBLE_METHODS_MAP.containsKey(javaObject.getClass())) {
-			Map<String, Map<Integer, Method>> methods = new HashMap<>();
+			Map<String, Set<Method>> methods = new HashMap<>();
 			Class<?> clazz = javaObject.getClass();
 			do {
 				for (Method m : clazz.getDeclaredMethods()) {
 					if (m.isAnnotationPresent(NotAllowedInLua.class)) {
 						continue;
 					}
+					if (m.getName().equals("restoreFromBundle")) {
+						continue;
+					}
 					int mods = m.getModifiers();
 					
-					Map<Integer, Method> methodsWithSameName = methods.get(m.getName());
+					Set<Method> methodsWithSameName = methods.get(m.getName());
 					if (methodsWithSameName == null) {
-						methodsWithSameName = new HashMap<>();
+						methodsWithSameName = new HashSet<>();
 						methods.put(m.getName(), methodsWithSameName);
 					}
 					
 					if (Modifier.isPublic(mods) || Modifier.isProtected(mods)) {
-						methodsWithSameName.put(m.getParameterCount(), m);
+						methodsWithSameName.add(m);
 					}
 				}
 
@@ -87,7 +95,7 @@ public class LuaRestrictionProxy extends LuaValue {
 			String name = key.tojstring();
 			
 			if (!name.endsWith("_v")) {
-				Map<Integer, Method> methods = ACCESSIBLE_METHODS_MAP.get(javaObject.getClass()).get(name);
+				Set<Method> methods = ACCESSIBLE_METHODS_MAP.get(javaObject.getClass()).get(name);
 				if (methods != null) {
 					return new FunctionInterceptor(name, methods, javaObject);
 				}
@@ -126,10 +134,10 @@ public class LuaRestrictionProxy extends LuaValue {
 	private static final class FunctionInterceptor extends VarArgFunction {
 		
 		private final String name;
-		private final Map<Integer, Method> methods;
+		private final Set<Method> methods;
 		private final Object javaObject;
 		
-		private FunctionInterceptor(String name, Map<Integer, Method> methods, Object javaObject) {
+		private FunctionInterceptor(String name, Set<Method> methods, Object javaObject) {
 			this.name = name;
 			this.methods = methods;
 			this.javaObject = javaObject;
@@ -138,16 +146,14 @@ public class LuaRestrictionProxy extends LuaValue {
 		@Override
 		public Varargs invoke(Varargs varargs) {
 			Object[] params = unwrapRestrictionProxiesAsJavaArray(varargs.subargs(2));
-			Method method = methods.get( params.length );
 			
-			if (method == null) {
-				method = LuaGlobals.findBestMatchingExecutableM(params, methods.values());
-			}
+			Method method = Reflection.findBestMatchingExecutableM(params, methods);
+			
 			try {
 				if (method == null) {
-					throw new LuaError("unknown method: " + name + " with " + varargs.narg() + " arguments");
+					throw new LuaError("unknown method: " + name + " with " + (varargs.narg()-1) + " arguments");
 				}
-				return wrapObject(method.invoke(javaObject, LuaGlobals.makeParamsFitVarArgsMethods(params, method.getParameterTypes(), method.isVarArgs())));
+				return wrapObject(method.invoke(javaObject, Reflection.makeParamsFitVarArgsMethods(params, method.getParameterTypes(), method.isVarArgs())));
 			} catch (Exception e) {
 				LuaGlobals.throwError(e);
 				return null;
@@ -231,7 +237,44 @@ public class LuaRestrictionProxy extends LuaValue {
 	// WARNING: NEVER use CoerceLuaToJava.coerce anywhere else! use LuaRestrictionPolicy.coerceLuaToJava(obj) instead!
 	public static Object coerceLuaToJava(LuaValue luaValue, Class<?> aClass) {
 		if (luaValue instanceof LuaRestrictionProxy) return luaValue.touserdata();
+		if (luaValue instanceof LuaTable) return convertLuaTableToArray(luaValue.checktable());
 		return CoerceLuaToJava.coerce(luaValue, aClass);
+	}
+	
+	public static Object[] convertLuaTableToArray(LuaTable table) {
+		Object[] javaArray = new Object[table.length()];
+		if (javaArray.length == 0) return javaArray;
+		
+		Class<?> commonType = null;
+		for (int i = 0; i < javaArray.length; i++) {
+			javaArray[i] = coerceLuaToJava( table.get(i+1) );
+			if (javaArray[i] == null) continue;
+			if (commonType == null) commonType = javaArray[i].getClass();
+			else {
+				Class<?> c = javaArray[i].getClass();
+				
+				while (c != null) {
+					if (c.isAssignableFrom(commonType)) {
+						commonType = c;
+						break;
+					}
+					c = c.getSuperclass();
+				}
+			}
+			
+		}
+		
+		Object[] result = (Object[]) Array.newInstance(commonType, javaArray.length);
+		System.arraycopy(javaArray, 0, result, 0, javaArray.length);
+		return result;
+	}
+	
+	//forces the type of the array
+	public static <T> T[] convertLuaTableToArray(LuaTable table, T[] result) {
+		for (int i = 0; i < result.length; i++) {
+			result[i] = (T) coerceLuaToJava(table.get(i + 1));
+		}
+		return result;
 	}
 
 	//WARNING! use carefully or else this is a security leak!
@@ -257,6 +300,9 @@ public class LuaRestrictionProxy extends LuaValue {
 	public static boolean isFieldRestricted(Field field) {
 //		Class<?> fieldType = field.getType();
 //		return isRestricted(fieldType);
+		if (field != null && field.isAnnotationPresent(NotAllowedInLua.class)) {
+			return true;
+		}
 		return false;
 	}
 

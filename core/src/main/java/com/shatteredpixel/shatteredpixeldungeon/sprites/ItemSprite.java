@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,6 +109,16 @@ public class ItemSprite extends MovieClip {
 		view(image, glowing);
 	}
 	
+	//emitter is not visible because it would only work of the sprite already had a parent!
+	public ItemSprite( int image, Glowing glowing, Emitter emitter ) {
+		super( Assets.Sprites.ITEMS );
+		
+		view(image);
+		
+		glow(glowing);
+		useEmitter(emitter);
+	}
+	
 	public void link() {
 		link(heap);
 	}
@@ -208,76 +218,96 @@ public class ItemSprite extends MovieClip {
 		}
 	}
 
-    public ItemSprite view(Item item) {
-        return view(item, item.glowing());
-    }
-
-    public ItemSprite view(Heap heap) {
-        if (heap.size() <= 0 || heap.items == null) {
-            return view(0, null);
-        }
-
-        dontRenderShadow = heap.type != Heap.Type.HEAP && heap.type != Heap.Type.FOR_SALE;
-        switch (heap.type) {
-            case HEAP:
-            case FOR_SALE:
-                Item item = heap.peek();
-                int img = item.image();
-                dontRenderShadow = img >= ItemSpriteSheet.SOMETHING && img < ItemSpriteSheet.SOMETHING + 16;
-                return view(heap.peek());
-            case CHEST:
-                return view(ItemSpriteSheet.CHEST, null);
-            case LOCKED_CHEST:
-                return view(ItemSpriteSheet.LOCKED_CHEST, null);
-            case CRYSTAL_CHEST:
-                return view(ItemSpriteSheet.CRYSTAL_CHEST, null);
-            case TOMB:
-                return view(ItemSpriteSheet.TOMB, null);
-            case SKELETON:
-                return view(ItemSpriteSheet.BONES, null);
-            case REMAINS:
-                return view(ItemSpriteSheet.REMAINS, null);
-            default:
-                return view(0, null);
-        }
-    }
-
-    public ItemSprite view(Item item, Glowing glowing) {
-        SmartTexture tx;
-        if (item.customImage == null
-                || (tx = TextureCache.getFromCurrentSavePath(CustomDungeonSaves.getExternalFilePath(item.customImage))) == null)
-            return view(item.image(), glowing);
-
-        if (this.emitter != null) this.emitter.killAndErase();
-        emitter = null;
-
-        boolean setOriginToCenter = origin.x == width / 2 && origin.y == height / 2;
-
-        usesItemSpriteSheet = false;
-        texture(tx);
-		if (Math.max(tx.width, tx.height) > ItemSpriteSheet.SIZE) {
-			scale.set(ItemSpriteSheet.SIZE / (float) (Math.max(tx.width, tx.height)));
-		} else {
+	public ItemSprite view( Item item ){
+		return view(item, item.glowing());
+	}
+	
+	public ItemSprite view( Heap heap ) {
+		if (heap.size() <= 0 || heap.items == null){
+			return view( 0, null );
+		}
+		
+		dontRenderShadow = true;
+		switch (heap.type) {
+			case HEAP: case FOR_SALE:
+				Item item = heap.peek();
+				int img = item.image();
+				dontRenderShadow = img >= ItemSpriteSheet.SOMETHING && img < ItemSpriteSheet.SOMETHING + 16;
+				view( heap.peek() ); break;
+			case CHEST:
+				view( ItemSpriteSheet.CHEST, null ); break;
+			case LOCKED_CHEST:
+				view( ItemSpriteSheet.LOCKED_CHEST, null ); break;
+			case CRYSTAL_CHEST:
+				view( ItemSpriteSheet.CRYSTAL_CHEST, null ); break;
+			case TOMB:
+				view( ItemSpriteSheet.TOMB, null ); break;
+			case SKELETON:
+				view( ItemSpriteSheet.BONES, null ); break;
+			case REMAINS:
+				view( ItemSpriteSheet.REMAINS, null ); break;
+			default:
+				view( 0, null );
+		}
+		
+		alpha( heap.hidden ? 0.15f : 1f);
+		
+		return this;
+	}
+	
+	public ItemSprite view(Item item, Glowing glowing) {
+		return view(item, glowing, item.emitter());
+	}
+	
+	public ItemSprite view( int image, Glowing glowing ) {
+		if (this.emitter != null) this.emitter.killAndErase();
+		emitter = null;
+		frame( image );
+		glow( glowing );
+		return this;
+	}
+	
+	public ItemSprite view(Item item, Glowing glowing, Emitter emitter) {
+		
+		if (this.emitter != null) this.emitter.killAndErase();
+		this.emitter = null;
+		
+		SmartTexture tx;
+		if (item.customImage == null
+				|| (tx = TextureCache.getFromCurrentSavePath(CustomDungeonSaves.getExternalFilePath(item.customImage))) == null) {
+			
+			view(item.image());
+		}
+		else {
+			boolean setOriginToCenter = origin.x == width / 2 && origin.y == height / 2;
+			
+			usesItemSpriteSheet = false;
+			texture(tx);
+			if (Math.max(tx.width, tx.height) > ItemSpriteSheet.SIZE) {
+				scale.set(ItemSpriteSheet.SIZE / (float) (Math.max(tx.width, tx.height)));
+			} else {
+				scale.set(1f);
+			}
+			
+			if (setOriginToCenter) originToCenter();
+		}
+		
+		glow(glowing);
+		useEmitter(emitter);
+		
+		return this;
+	}
+	
+	public ItemSprite view(int image) {
+		if (!usesItemSpriteSheet) {
+			texture(Assets.Sprites.ITEMS);
 			scale.set(1f);
 		}
-
-        if (setOriginToCenter) originToCenter();
-
-        glow(glowing);
-        return this;
-    }
-
-    public ItemSprite view(int image, Glowing glowing) {
-        if (!usesItemSpriteSheet) {
-            texture(Assets.Sprites.ITEMS);
-            scale.set(1f);
-        }
-        if (this.emitter != null) this.emitter.killAndErase();
-        emitter = null;
-        frame(image);
-        glow(glowing);
-        return this;
-    }
+		if (this.emitter != null) this.emitter.killAndErase();
+		this.emitter = null;
+		frame(image);
+		return this;
+	}
 
 	public void frame( int image ){
 		frame( ItemSpriteSheet.film.get( image ));
@@ -292,6 +322,14 @@ public class ItemSprite extends MovieClip {
 	public synchronized void glow( Glowing glowing ){
 		this.glowing = glowing;
 		if (glowing == null) resetColor();
+	}
+	
+	public void useEmitter( Emitter emitter ) {
+		if (emitter != null && parent != null) {
+			emitter.pos(this);
+			parent.add(emitter);
+			this.emitter = emitter;
+		}
 	}
 
 	@Override

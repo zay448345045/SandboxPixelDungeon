@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ import com.watabou.noosa.Game;
 import com.watabou.noosa.ui.Component;
 
 import java.io.IOException;
-import java.util.Map;
 
 public class CustomObjectEditor<T extends CustomObject> extends Component {
 
@@ -96,8 +95,8 @@ public class CustomObjectEditor<T extends CustomObject> extends Component {
 						}
 
 						@Override
-						protected void onSelect(Map.Entry<String, FileHandle> path) {
-							luaScriptPath.setValue(path.getKey());
+						protected void onSelect(String path, FileHandle file) {
+							luaScriptPath.setValue(path);
 						}
 					});
 				}

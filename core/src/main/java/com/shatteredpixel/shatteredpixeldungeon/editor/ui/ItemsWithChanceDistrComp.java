@@ -31,7 +31,9 @@ import com.watabou.utils.Function;
 import com.watabou.utils.Random;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.shatteredpixel.shatteredpixeldungeon.editor.ui.MultiWindowTabComp.BUTTON_HEIGHT;
 import static com.shatteredpixel.shatteredpixeldungeon.editor.ui.MultiWindowTabComp.GAP;
@@ -41,6 +43,8 @@ public abstract class ItemsWithChanceDistrComp extends Component {
     protected static final float ROW_HEIGHT = 20;
 
     protected RandomItemData randomItemData;
+    private List<Slot> slots = new ArrayList<>();
+    private Map<ItemWithCount, Slot> itemToSlot = new HashMap<>();//null means nothing
 
     protected RenderedTextBlock title;
     protected boolean hasNullInLoot;
@@ -137,7 +141,7 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
             @Override
             public boolean acceptsNull() {
-                return !hasNullInLoot;
+                return !hasNullInLoot && onSelect == null;
             }
         };
     }
@@ -176,13 +180,13 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
         isInInit = true;
 
-        for (ItemWithCount item : randomItemData.distrSlots) {
-            if (item.slot != null) {
-                item.slot.setRect(x, posY, width, ROW_HEIGHT);
-                item.setCount((int) item.slot.countSpinner.getValue());
-                PixelScene.align(item.slot);
-                posY = item.slot.bottom();
-            }
+        for (Slot slot : slots) {
+            int count = (int) slot.countSpinner.getValue();
+            slot.setCount(count);
+            
+            slot.setRect(x, posY, width, ROW_HEIGHT);
+            PixelScene.align(slot);
+            posY = slot.bottom();
         }
         height = posY - y;
         isInInit = false;
@@ -202,10 +206,10 @@ public abstract class ItemsWithChanceDistrComp extends Component {
     }
 
     private void addSlot(ItemWithCount item) {
-        if (item.items.contains(EditorItem.NULL_ITEM)) hasNullInLoot = true;
-        item.slot = new Slot(item, minNumItemsPerSlot, maxNumItemsPerSlot);
-        add(item.slot);
-        item.slot.setSize(width, ROW_HEIGHT);
+        if (item.items.size() == 1 && item.items.contains(EditorItem.NULL_ITEM)) hasNullInLoot = true;
+        Slot slot = new Slot(item, minNumItemsPerSlot, maxNumItemsPerSlot);
+        slot.setSize(width, ROW_HEIGHT);
+        add(slot);
     }
 
     private String calculatePercentage(float count) {
@@ -216,8 +220,11 @@ public abstract class ItemsWithChanceDistrComp extends Component {
     }
 
     private void updateSpinners(ItemWithCount exclude) {
-        for (ItemWithCount item : randomItemData.distrSlots) {
-            if (item.slot != null && item != exclude) item.setCount((int) item.slot.countSpinner.getValue());
+        for (Slot slot : slots) {
+            if (slot != null && slot.item != exclude) {
+                int count = (int) slot.countSpinner.getValue();
+                slot.setCount(count);
+            }
         }
     }
 
@@ -233,10 +240,17 @@ public abstract class ItemsWithChanceDistrComp extends Component {
         public Slot(ItemWithCount item, int minSlots, int maxSlots) {
 
             this.item = item;
+            if (item.items.contains(EditorItem.NULL_ITEM)) {
+                slots.add(0, this);
+                itemToSlot.put(null, this);
+            } else {
+                slots.add(this);
+                itemToSlot.put(item, this);
+            }
 
             if (item.items.contains(EditorItem.NULL_ITEM)) {
                 items = null;
-                text = PixelScene.renderTextBlock(EditorItem.NULL_ITEM.title(), 7);
+                text = PixelScene.renderTextBlock(Messages.titleCase(EditorItem.NULL_ITEM.title()), 7);
                 add(text);
             } else {
                 text = null;
@@ -244,7 +258,8 @@ public abstract class ItemsWithChanceDistrComp extends Component {
                 items = new ItemContainer<Item>(item.items, null, false, minSlots, maxSlots) {
                     @Override
                     protected void onSlotNumChange() {
-                        ItemsWithChanceDistrComp.Slot.this.layout();
+                        if (items != null) updateList(true);
+                        else ItemsWithChanceDistrComp.Slot.this.layout();
                     }
 
                     @Override
@@ -278,7 +293,7 @@ public abstract class ItemsWithChanceDistrComp extends Component {
             countSpinner.addChangeListener(() -> updateSpinners(item));
             add(countSpinner);
 
-            removeBtn = new IconButton(Icons.get(Icons.CLOSE)) {
+            removeBtn = new IconButton(Icons.TRASH.get()) {
                 @Override
                 protected void onClick() {
                     removeItem();
@@ -292,6 +307,8 @@ public abstract class ItemsWithChanceDistrComp extends Component {
             sum -= count;
             item.count = 0;
             randomItemData.distrSlots.remove(item);
+            itemToSlot.remove(item);
+            slots.remove(this);
             if (item.items.contains(EditorItem.NULL_ITEM)) {
                 hasNullInLoot = false;
                 randomItemData.noLootCount = 0;
@@ -302,6 +319,7 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
         public void setCount(int count) {
             countSpinner.setValue(count);
+            item.setCount(count);
         }
 
         @Override
@@ -364,16 +382,26 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
     @Override
     public synchronized void destroy() {
+        maybeConvertNullItemToNothingElement();
+        super.destroy();
+    }
+    
+    private void maybeConvertNullItemToNothingElement() {
         ItemWithCount remove = null;
         for (ItemWithCount item : randomItemData.distrSlots) {
-            if (item.items.contains(EditorItem.NULL_ITEM)) {
+            if (item.items.size() == 1 && item.items.contains(EditorItem.NULL_ITEM)) {
                 randomItemData.noLootCount = item.count;
                 remove = item;
                 break;
             }
         }
-        if (remove != null) randomItemData.distrSlots.remove(remove);
-        super.destroy();
+        if (remove != null) {
+            Slot slot = itemToSlot.get(remove);
+            slots.remove(slot);
+            slots.add(0, slot);
+            itemToSlot.put(null, slot);
+            randomItemData.distrSlots.remove(remove);
+        }
     }
 
     public static class ItemWithCount extends GameObject {
@@ -381,11 +409,8 @@ public abstract class ItemsWithChanceDistrComp extends Component {
         public List<Item> items = new ArrayList<>(3);
         private int count;
 
-        private Slot slot;
-
         public void setCount(int count) {
             this.count = count;
-            if (slot != null) slot.setCount(count);
         }
 
         public int getCount() {
@@ -417,6 +442,13 @@ public abstract class ItemsWithChanceDistrComp extends Component {
             bundle.put(ITEMS, items);
             bundle.put(COUNT, count);
         }
+        
+        @Override
+        public ItemWithCount getCopy() {
+            Bundle bundle = new Bundle();
+            bundle.put("ITEM",this);
+            return (ItemWithCount) bundle.get("ITEM");
+        }
     }
 
     public static class RandomItemData implements Bundlable {
@@ -429,6 +461,7 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
         @Override
         public void restoreFromBundle(Bundle bundle) {
+            distrSlots.clear();
             for (Bundlable b : bundle.getCollection(LOOT))
                 distrSlots.add((ItemWithCount) b);
             noLootCount = bundle.getInt(NO_LOOT);
@@ -439,13 +472,17 @@ public abstract class ItemsWithChanceDistrComp extends Component {
 
             ItemWithCount remove = null;
             for (ItemWithCount item : distrSlots) {
-                if (item.items.contains(EditorItem.NULL_ITEM)) {
+                if (item.items.size() == 1 && item.items.contains(EditorItem.NULL_ITEM)) {
                     noLootCount = item.count;
                     remove = item;
                     break;
                 }
             }
-            if (remove != null) distrSlots.remove(remove);
+            if (remove != null) {
+                distrSlots.remove(remove);
+            }
+            
+//            maybeConvertNullItemToNothingElement();
 
             bundle.put(LOOT, distrSlots);
             bundle.put(NO_LOOT, noLootCount);

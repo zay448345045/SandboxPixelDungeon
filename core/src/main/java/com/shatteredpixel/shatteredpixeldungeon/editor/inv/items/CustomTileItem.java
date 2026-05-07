@@ -13,7 +13,6 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.Undo;
 import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.parts.CustomTileActionPart;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomTileLoader;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
-import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.sewerboss.GooBossRoom;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
@@ -23,7 +22,7 @@ import com.shatteredpixel.shatteredpixeldungeon.ui.ScrollingListPane;
 import com.watabou.noosa.Image;
 import com.watabou.utils.Point;
 
-import java.util.Set;
+import java.util.List;
 
 public class CustomTileItem extends EditorItem<CustomTilemap> {
 
@@ -67,7 +66,7 @@ public class CustomTileItem extends EditorItem<CustomTilemap> {
     }
 
     @Override
-    public Item getCopy() {
+    public CustomTileItem getCopy() {
         return new CustomTileItem(getObject().getCopy(), cell);
     }
 
@@ -182,7 +181,7 @@ public class CustomTileItem extends EditorItem<CustomTilemap> {
         return cust == null ? findCustomTileAt(p, Dungeon.level.customWalls) : cust;
     }
 
-    private static CustomTilemap findCustomTileAt(Point p, Set<CustomTilemap> customTiles) {
+    private static CustomTilemap findCustomTileAt(Point p, List<CustomTilemap> customTiles) {
         for (CustomTilemap cust : customTiles) {
             if (cust instanceof CustomTilemap.BossLevelVisuals) continue;
             Point custPoint = new Point(p);

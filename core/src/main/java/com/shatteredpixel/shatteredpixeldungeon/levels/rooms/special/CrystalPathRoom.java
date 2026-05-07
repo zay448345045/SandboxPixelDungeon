@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ public class CrystalPathRoom extends SpecialRoom {
 					aCls = ExoticPotion.exoToReg.get(aCls);
 				}
 				if (b instanceof ExoticPotion){
-					bCls = ExoticPotion.exoToReg.get(aCls);
+					bCls = ExoticPotion.exoToReg.get(bCls);
 				}
 				for (int i = 0; i < Generator.Category.POTION.classes.length; i++){
 					if (aCls == Generator.Category.POTION.classes[i]) aVal = (int)Generator.Category.POTION.defaultProbsTotal[i];
@@ -226,7 +226,7 @@ public class CrystalPathRoom extends SpecialRoom {
 					aCls = ExoticScroll.exoToReg.get(aCls);
 				}
 				if (b instanceof ExoticScroll){
-					bCls = ExoticScroll.exoToReg.get(aCls);
+					bCls = ExoticScroll.exoToReg.get(bCls);
 				}
 				for (int i = 0; i < Generator.Category.SCROLL.classes.length; i++){
 					if (aCls == Generator.Category.SCROLL.classes[i]) aVal = (int)Generator.Category.SCROLL.defaultProbsTotal[i];
@@ -248,7 +248,7 @@ public class CrystalPathRoom extends SpecialRoom {
 		level.drop(potions.remove(0), shuffle == 1 ? prize1 : prize2).autoExplored = true;
 		level.drop(scrolls.remove(0), shuffle == 1 ? prize2 : prize1).autoExplored = true;
 
-		entrance().set( Door.Type.UNLOCKED );
+		entrance().set( Door.Type.REGULAR );
 
 	}
 

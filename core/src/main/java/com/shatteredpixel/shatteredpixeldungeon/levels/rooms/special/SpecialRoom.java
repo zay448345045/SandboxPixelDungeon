@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 package com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
-import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
-import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomLevel;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
@@ -37,7 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class SpecialRoom extends Room implements Copyable<Room> {
+public abstract class SpecialRoom extends Room {
 	
 	@Override
 	public int minWidth() { return 5; }
@@ -86,7 +84,7 @@ public abstract class SpecialRoom extends Room implements Copyable<Room> {
 	}
 
 	@Override
-	public Room getCopy() {
+	public SpecialRoom getCopy() {
 		SpecialRoom r = (SpecialRoom) super.getCopy();
 		if (entrance == null) r.entrance = null;
 		return r;
@@ -107,7 +105,7 @@ public abstract class SpecialRoom extends Room implements Copyable<Room> {
 	) );
 
 	//only one special that uses crystal keys per floor
-	private static final ArrayList<Class<? extends SpecialRoom>> CRYSTAL_KEY_SPECIALS = new ArrayList<>( Arrays.asList(
+	public static final ArrayList<Class<? extends SpecialRoom>> CRYSTAL_KEY_SPECIALS = new ArrayList<>( Arrays.asList(
 			PitRoom.class, CrystalVaultRoom.class, CrystalChoiceRoom.class, CrystalPathRoom.class
 	) );
 
@@ -225,7 +223,6 @@ public abstract class SpecialRoom extends Room implements Copyable<Room> {
 			}
 		} else {
 			initForRun();
-			SandboxPixelDungeon.reportException(new Exception("specials array didn't exist!"));
 		}
 
 		if (bundle.contains(PIT_VALUES)) {

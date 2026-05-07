@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.watabou.noosa.Image;
 import com.watabou.utils.PathFinder;
+import com.watabou.utils.RectF;
 
 public class DungeonTerrainTilemap extends DungeonTilemap {
 
@@ -36,6 +37,7 @@ public class DungeonTerrainTilemap extends DungeonTilemap {
 
 	public DungeonTerrainTilemap(int region){
 		super(region == LevelScheme.REGION_NONE ? Dungeon.level.tilesTex() : CustomLevel.tilesTex(region, false));
+		tileset.frameIdIfNull = DungeonTileSheet.INVISIBLE_TILE;
 
 		this.region = region;
 
@@ -48,7 +50,7 @@ public class DungeonTerrainTilemap extends DungeonTilemap {
 	@Override
 	protected int getTileVisual(int pos, int tile, boolean flat) {
 
-		int region = pos >= 0 ? Dungeon.level.visualRegions[pos] : 0;
+		int region = pos >= 0 ? Dungeon.level.visualRegions[pos] : this.region;
 		if (region != this.region && !(this.region == 0 && region == Dungeon.visualRegion()))
 			return DungeonTileSheet.NULL_TILE;
 
@@ -86,6 +88,26 @@ public class DungeonTerrainTilemap extends DungeonTilemap {
 				return DungeonTileSheet.RAISED_STATUE;
 			} else if (tile == Terrain.STATUE_SP) {
 				return DungeonTileSheet.RAISED_STATUE_SP;
+			} else if (tile == Terrain.BARREL) {
+				return DungeonTileSheet.RAISED_BARREL;
+			} else if (tile == Terrain.BARREL_ALT) {
+				return DungeonTileSheet.RAISED_BARREL_ALT;
+			} else if (tile == Terrain.CAGE) {
+				return DungeonTileSheet.RAISED_CAGE;
+			} else if (tile == Terrain.CAGE_ALT) {
+				return DungeonTileSheet.RAISED_CAGE_ALT;
+			} else if (tile == Terrain.METAL_STRUCTURE) {
+				return DungeonTileSheet.RAISED_METAL_STRUCTURE;
+			} else if (tile == Terrain.METAL_STRUCTURE_ALT) {
+				return DungeonTileSheet.RAISED_METAL_STRUCTURE_ALT;
+			} else if (tile == Terrain.FLAMING_PEDESTAL) {
+				return DungeonTileSheet.RAISED_FLAMING_PEDESTAL;
+			} else if (tile == Terrain.FLAMING_PEDESTAL_ALT) {
+				return DungeonTileSheet.RAISED_FLAMING_PEDESTAL_ALT;
+			} else if (tile == Terrain.RUBBLE) {
+				return DungeonTileSheet.RAISED_RUBBLE;
+			} else if (tile == Terrain.RUBBLE_ALT) {
+				return DungeonTileSheet.RAISED_RUBBLE_ALT;
 			} else if (tile == Terrain.MINE_CRYSTAL) {
 				return DungeonTileSheet.getVisualWithAlts(
 						DungeonTileSheet.RAISED_MINE_CRYSTAL,
@@ -121,8 +143,12 @@ public class DungeonTerrainTilemap extends DungeonTilemap {
 	}
 
 	public static Image tile(int pos, int tile, int region ) {
+		RectF frame = instances[region].tileset.get( tileSlot(pos, tile, region) );
+		if (frame == null) {
+			return tile(pos, DungeonTileSheet.INVISIBLE_TILE, region);
+		}
 		Image img = new Image( instances[region].texture );
-		img.frame( instances[region].tileset.get( tileSlot(pos, tile, region) ) );
+		img.frame(frame);
 		return img;
 	}
 

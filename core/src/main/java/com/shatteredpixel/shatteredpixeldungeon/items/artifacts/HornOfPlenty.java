@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -261,11 +261,6 @@ public class HornOfPlenty extends Artifact {
 	public void restoreFromBundle(Bundle bundle) {
 		super.restoreFromBundle(bundle);
 
-		//pre-2.0.0 saves
-		if (partialCharge > 1){
-			partialCharge /= Hunger.STARVING/5f;
-		}
-
 		storedFoodEnergy = bundle.getInt(STORED);
 		
 		if (charge >= 8)       image = ItemSpriteSheet.ARTIFACT_HORN4;
@@ -276,7 +271,7 @@ public class HornOfPlenty extends Artifact {
 	public class hornRecharge extends ArtifactBuff{
 
 		public void gainCharge(float levelPortion) {
-			if (cursed || target.buff(MagicImmune.class) != null) return;
+			if (cursed || target.buff(MagicImmune.class) != null || !rechargeRule.normalRechargeable()) return;
 			
 			if (charge < chargeCap) {
 

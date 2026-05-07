@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,11 +23,13 @@ package com.shatteredpixel.shatteredpixeldungeon.ui;
 
 import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
+import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.TitleScene;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndKeyBindings;
 import com.watabou.NotAllowedInLua;
 import com.watabou.input.GameAction;
 import com.watabou.noosa.Game;
+import com.watabou.utils.DeviceCompat;
 
 @NotAllowedInLua
 public class ExitButton extends IconButton {
@@ -35,7 +37,7 @@ public class ExitButton extends IconButton {
 	public ExitButton() {
 		super(Icons.EXIT.get());
 
-		width = 20;
+		width = (PixelScene.landscape() && !DeviceCompat.isDesktop()) ? 40 : 20;
 		height = 20;
 	}
 

@@ -22,11 +22,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.overview.floor.WndSelectL
 import com.shatteredpixel.shatteredpixeldungeon.items.Gold;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.CrystalKey;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.GoldenKey;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.IronKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.keys.Key;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.SkeletonKey;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
@@ -56,6 +52,7 @@ import com.watabou.utils.Random;
 import com.watabou.utils.RectF;
 
 import java.io.IOException;
+import java.util.Calendar;
 import java.util.Map;
 
 public final class EditorUtilities {
@@ -188,11 +185,11 @@ public final class EditorUtilities {
         return numFound;
     }
 
-    public static int getNumKeys(Class<? extends Key> type, Level level) {
+    public static int getNumKeys(Key.Type type, Level level) {
         int numFound = 0;
         for (Heap h : level.heaps.values()) {
             for (Item i : h.items) {
-                if (i.getClass() == type
+                if (i instanceof Key && ((Key) i).type() == type
                         && (Level.ANY.equals(((Key) i).levelName) || level.name.equals(((Key) i).levelName))) numFound += i.quantity();
             }
         }
@@ -212,7 +209,7 @@ public final class EditorUtilities {
     public static String addIronKeyDescription(String desc, Level level) {
         int numLockedDoors = EditorUtilities.getNumTiles(Terrain.LOCKED_DOOR, level)
                 + EditorUtilities.getNumTiles(Terrain.SECRET_LOCKED_DOOR, level);
-        int numIronKeys = EditorUtilities.getNumKeys(IronKey.class, level);
+        int numIronKeys = EditorUtilities.getNumKeys(Key.Type.IRON, level);
         if (desc.length() > 0) desc += "\n";
         desc += "\n" + Messages.get(EditTileComp.class, "num_locked_doors") + ": " + numLockedDoors;
         desc += "\n" + Messages.get(EditTileComp.class, "num_iron_keys") + ": " + numIronKeys;
@@ -221,10 +218,10 @@ public final class EditorUtilities {
 
     public static String addGoldKeyDescription(String desc, Level level) {
         int numLockedChests = EditorUtilities.getNumContainer(Heap.Type.LOCKED_CHEST, level);
-        int numIronKeys = EditorUtilities.getNumKeys(GoldenKey.class, level);
+        int numGoldKeys = EditorUtilities.getNumKeys(Key.Type.GOLD, level);
         if (desc.length() > 0) desc += "\n";
         desc += "\n" + Messages.get(EditTileComp.class, "num_gold_containers") + ": " + numLockedChests;
-        desc += "\n" + Messages.get(EditTileComp.class, "num_gold_keys") + ": " + numIronKeys;
+        desc += "\n" + Messages.get(EditTileComp.class, "num_gold_keys") + ": " + numGoldKeys;
         return desc;
     }
 
@@ -232,19 +229,32 @@ public final class EditorUtilities {
         int numLockedDoors = EditorUtilities.getNumTiles(Terrain.CRYSTAL_DOOR, level)
                 + EditorUtilities.getNumTiles(Terrain.SECRET_CRYSTAL_DOOR, level);
         int numCrystalContainers = EditorUtilities.getNumContainer(Heap.Type.CRYSTAL_CHEST, level);
-        int numCrystalKeys = EditorUtilities.getNumKeys(CrystalKey.class, level);
+        int numCrystalKeys = EditorUtilities.getNumKeys(Key.Type.CRYSTAL, level);
         if (desc.length() > 0) desc += "\n";
         desc += "\n" + Messages.get(EditTileComp.class, "num_crystal_doors") + ": " + numLockedDoors;
         desc += "\n" + Messages.get(EditTileComp.class, "num_crystal_containers") + ": " + numCrystalContainers;
         desc += "\n" + Messages.get(EditTileComp.class, "num_crystal_keys") + ": " + numCrystalKeys;
         return desc;
     }
-
+	
+	public static String addWornKeyDescription(String desc, Level level) {
+		int numLockedDoors = EditorUtilities.getNumTiles(Terrain.LOCKED_EXIT, level);
+		int numWornKeys = EditorUtilities.getNumKeys(Key.Type.WORN, level);
+		if (desc.length() > 0) desc += "\n";
+		desc += "\n" + Messages.get(EditTileComp.class, "num_locked_exits") + ": " + numLockedDoors;
+		desc += "\n" + Messages.get(EditTileComp.class, "num_worn_keys") + ": " + numWornKeys;
+		return desc;
+	}
     public static String addSkeletonKeyDescription(String desc, Level level) {
-        int numLockedDoors = EditorUtilities.getNumTiles(Terrain.LOCKED_EXIT, level);
-        int numSkeleKeys = EditorUtilities.getNumKeys(SkeletonKey.class, level);
-        if (desc.length() > 0) desc += "\n";
-        desc += "\n" + Messages.get(EditTileComp.class, "num_locked_exits") + ": " + numLockedDoors;
+		int numLockedStuff = EditorUtilities.getNumTiles(Terrain.LOCKED_DOOR, level) //iron
+						+ EditorUtilities.getNumTiles(Terrain.SECRET_LOCKED_DOOR, level) //iron
+						+ EditorUtilities.getNumContainer(Heap.Type.LOCKED_CHEST, level) //gold
+						+ EditorUtilities.getNumTiles(Terrain.CRYSTAL_DOOR, level) //crystal
+						+ EditorUtilities.getNumTiles(Terrain.SECRET_CRYSTAL_DOOR, level) //crystal
+						+ EditorUtilities.getNumTiles(Terrain.LOCKED_EXIT, level); //worn
+		int numSkeleKeys = EditorUtilities.getNumKeys(Key.Type.SKELETON, level);
+		if (desc.length() > 0) desc += "\n";
+        desc += "\n" + Messages.get(EditTileComp.class, "num_locked_stuff") + ": " + numLockedStuff;
         desc += "\n" + Messages.get(EditTileComp.class, "num_skeleton_keys") + ": " + numSkeleKeys;
         return desc;
     }
@@ -272,7 +282,30 @@ public final class EditorUtilities {
         long hours = minutes / 60;
         long days = hours / 24;
         long weeks = days / 7;
-        long years = seconds / 31556952;
+//        long years = seconds / 31556952;
+        int months = 0;
+        int years = 0;
+        
+        if (weeks > 2) {
+            Calendar now = Calendar.getInstance();
+            Calendar other = Calendar.getInstance();
+            other.setTimeInMillis(now.getTimeInMillis() - timeDifferenceMillis);
+            
+            years = now.get(Calendar.YEAR) - other.get(Calendar.YEAR);
+            Calendar temp = (Calendar) other.clone();
+            temp.add(Calendar.YEAR, years);
+            if (temp.after(now)) {
+                years--;
+            }
+
+            months = (now.get(Calendar.YEAR) - other.get(Calendar.YEAR)) * 12 +
+                    (now.get(Calendar.MONTH) - other.get(Calendar.MONTH));
+            temp = (Calendar) other.clone();
+            temp.add(Calendar.MONTH, months);
+            if (temp.after(now)) {
+                months--;
+            }
+        }
 
         if (timeDifferenceMillis < 0) {
             if (timeDifferenceMillis > - 15_000) return Messages.get(EditorUtilities.class, "time_diff_seconds_true", 0);
@@ -280,6 +313,8 @@ public final class EditorUtilities {
             return Messages.get(EditorUtilities.class, "time_diff_future", days, hours % 24, minutes % 60);
         } else if (years > 0) {
             return Messages.get(EditorUtilities.class, "time_diff_years_" + (years != 1), years);
+        } else if (months > 0) {
+            return Messages.get(EditorUtilities.class, "time_diff_months_" + (months != 1), months);
         } else if (weeks > 0) {
             return Messages.get(EditorUtilities.class, "time_diff_weeks_" + (weeks != 1), weeks);
         } else if (days > 0) {

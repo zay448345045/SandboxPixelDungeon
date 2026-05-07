@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -352,6 +352,7 @@ public class DriedRose extends Artifact {
 		
 		if (ghost != null){
 			ghost.updateRose();
+			ghost.HP = Math.min(ghost.HP+8, ghost.HT);
 		}
 
 		return super.upgrade();
@@ -425,6 +426,9 @@ public class DriedRose extends Artifact {
 					while (partialCharge > 1) {
 						ghost.HP++;
 						partialCharge--;
+						if (ghost.HP == ghost.HT){
+							partialCharge = 0;
+						}
 					}
 				} else {
 					partialCharge = 0;
@@ -436,7 +440,8 @@ public class DriedRose extends Artifact {
 			if (charge < chargeCap
 					&& !cursed
 					&& target.buff(MagicImmune.class) == null
-					&& Regeneration.regenOn()) {
+					&& Regeneration.regenOn()
+					&& rechargeRule.normalRechargeable()) {
 				//500 turns to a full charge
 				partialCharge += (1/5f * RingOfEnergy.artifactChargeMultiplier(target));
 				while (partialCharge > 1){
@@ -513,7 +518,7 @@ public class DriedRose extends Artifact {
 				return false;
 			} if ( rose.level() >= rose.levelCap ){
 				GLog.i( Messages.get(this, "no_room") );
-				hero.spendAndNext(TIME_TO_PICK_UP);
+				hero.spendAndNext(pickupDelay());
 				return true;
 			} else {
 
@@ -526,7 +531,7 @@ public class DriedRose extends Artifact {
 
 				Sample.INSTANCE.play( Assets.Sounds.DEWDROP );
 				GameScene.pickUp(this, pos);
-				hero.spendAndNext(TIME_TO_PICK_UP);
+				hero.spendAndNext(pickupDelay());
 				return true;
 
 			}
@@ -550,7 +555,8 @@ public class DriedRose extends Artifact {
 
 		{
 			alignment = Alignment.ALLY;
-			directableAlly = new GhostHeroDirectableAlly(this);
+			directableAlly = new GhostHeroDirectableAlly();
+			directableAlly.setMob(this);
 			state = WANDERING;
 
 			spriteClass = GhostSprite.class;
@@ -577,10 +583,6 @@ public class DriedRose extends Artifact {
 		}
 
 		public static class GhostHeroDirectableAlly extends DirectableAlly {
-
-			public GhostHeroDirectableAlly(Mob mob) {
-				super(mob);
-			}
 
 			@Override
 			public void defendPos(int cell) {
@@ -622,12 +624,26 @@ public class DriedRose extends Artifact {
 		private void updateRose(){
 			if (rose == null) {
 				rose = Dungeon.hero.belongings.getItem(DriedRose.class);
+				if (rose != null) {
+					rose.ghost = this;
+					rose.ghostID = id();
+				}
 			}
 			
 			//same dodge as the hero
 			defenseSkill = (Dungeon.hero.lvl+4);
 			if (rose == null) return;
 			HT = 20 + 8*rose.level();
+		}
+
+		public Weapon weapon(){
+			if (rose != null)   return rose.weapon;
+			else                return null;
+		}
+
+		public Armor armor(){
+			if (rose != null)   return rose.armor;
+			else                return null;
 		}
 
 		@Override
@@ -653,8 +669,8 @@ public class DriedRose extends Artifact {
 			//same accuracy as the hero.
 			int acc = Dungeon.hero.lvl + 9;
 			
-			if (rose != null && rose.weapon != null){
-				acc *= rose.weapon.accuracyFactor( this, target );
+			if (weapon() != null){
+				acc *= weapon().accuracyFactor( this, target );
 			}
 			
 			return acc;
@@ -663,22 +679,22 @@ public class DriedRose extends Artifact {
 		@Override
 		public float attackDelay() {
 			float delay = super.attackDelay();
-			if (rose != null && rose.weapon != null){
-				delay *= rose.weapon.delayFactor(this);
+			if (weapon() != null){
+				delay *= weapon().delayFactor(this);
 			}
 			return delay;
 		}
 		
 		@Override
 		protected boolean canAttack(Char enemy) {
-			return super.canAttack(enemy) || (rose != null && rose.weapon != null && rose.weapon.canReach(this, enemy.pos));
+			return super.canAttack(enemy) || (weapon() != null && weapon().canReach(this, enemy.pos));
 		}
 		
 		@Override
 		public int damageRoll() {
 			int dmg = 0;
-			if (rose != null && rose.weapon != null){
-				dmg += rose.weapon.damageRoll(this);
+			if (weapon() != null){
+				dmg += weapon().damageRoll(this);
 			} else {
 				dmg += Random.NormalIntRange(0, 5);
 			}
@@ -689,13 +705,12 @@ public class DriedRose extends Artifact {
 		@Override
 		public int attackProc(Char enemy, int damage) {
 			damage = super.attackProc(enemy, damage);
-			if (rose != null) {
-				if (rose.weapon != null) {
-					damage = rose.weapon.proc(this, enemy, damage);
-					if (!enemy.isAlive() && enemy == Dungeon.hero) {
-						Dungeon.fail(this);
-						GLog.n(Messages.capitalize(Messages.get(Char.class, "kill", name())));
-					}
+
+			if (weapon() != null) {
+				damage = weapon().proc(this, enemy, damage);
+				if (!enemy.isAlive() && enemy == Dungeon.hero) {
+					Dungeon.fail(this);
+					GLog.n(Messages.capitalize(Messages.get(Char.class, "kill", name())));
 				}
 			}
 
@@ -704,8 +719,8 @@ public class DriedRose extends Artifact {
 		
 		@Override
 		public int defenseProc(Char enemy, int damage) {
-			if (rose != null && rose.armor != null) {
-				damage = rose.armor.proc( enemy, this, damage );
+			if (armor() != null) {
+				damage = armor().proc( enemy, this, damage );
 			}
 			return super.defenseProc(enemy, damage);
 		}
@@ -736,8 +751,8 @@ public class DriedRose extends Artifact {
 		public int defenseSkill(Char enemy) {
 			int defense = super.defenseSkill(enemy);
 
-			if (defense != 0 && rose != null && rose.armor != null ){
-				defense = Math.round(rose.armor.evasionFactor( this, defense ));
+			if (defense != 0 && armor() != null ){
+				defense = Math.round(armor().evasionFactor( this, defense ));
 			}
 			
 			return defense;
@@ -746,19 +761,19 @@ public class DriedRose extends Artifact {
 		@Override
 		public int drRoll() {
 			int dr = super.drRoll();
-			if (rose != null && rose.armor != null){
-				dr += Random.NormalIntRange( rose.armor.DRMin(), rose.armor.DRMax());
+			if (armor() != null){
+				dr += Random.NormalIntRange( armor().DRMin(), armor().DRMax());
 			}
-			if (rose != null && rose.weapon != null){
-				dr += Random.NormalIntRange( 0, rose.weapon.defenseFactor( this ));
+			if (weapon() != null){
+				dr += Random.NormalIntRange( 0, weapon().defenseFactor( this ));
 			}
 			return dr;
 		}
 
 		@Override
 		public int glyphLevel(Class<? extends Armor.Glyph> cls) {
-			if (rose != null && rose.armor != null && rose.armor.hasGlyph(cls, this)){
-				return Math.max(super.glyphLevel(cls), rose.armor.buffedLvl());
+			if (armor() != null && armor().hasGlyph(cls, this)){
+				return Math.max(super.glyphLevel(cls), armor().buffedLvl());
 			} else {
 				return super.glyphLevel(cls);
 			}
@@ -875,17 +890,22 @@ public class DriedRose extends Artifact {
 			immunities.add( ScrollOfPsionicBlast.class );
 			immunities.add( AllyBuff.class );
 		}
+		
+		private static final String DIRECTABLE = "directable";
 
 		@Override
 		public void restoreFromBundle(Bundle bundle) {
 			super.restoreFromBundle(bundle);
-			directableAlly.restore(bundle);
+			if (!directableAlly.maybeRestore(bundle)) {
+				directableAlly = (DirectableAlly) bundle.get(DIRECTABLE);
+				directableAlly.setMob(this);
+			}
 		}
 
 		@Override
 		public void storeInBundle(Bundle bundle) {
 			super.storeInBundle(bundle);
-			directableAlly.store(bundle);
+			bundle.put(DIRECTABLE, directableAlly);
 		}
 	}
 	
@@ -947,11 +967,11 @@ public class DriedRose extends Artifact {
 								} else if (item.unique) {
 									GLog.w( Messages.get(WndGhostHero.class, "cant_unique"));
 									hide();
-								} else if (!item.isIdentified()) {
-									GLog.w( Messages.get(WndGhostHero.class, "cant_unidentified"));
+								} else if (item.cursed || !item.cursedKnown()) {
+									GLog.w(Messages.get(WndGhostHero.class, "cant_cursed"));
 									hide();
-								} else if (item.cursed) {
-									GLog.w( Messages.get(WndGhostHero.class, "cant_cursed"));
+								}  else if (!item.levelKnown && ((MeleeWeapon)item).STRReq(0) > rose.ghostStrength()){
+									GLog.w( Messages.get(WndGhostHero.class, "cant_strength_unknown"));
 									hide();
 								} else if (((MeleeWeapon)item).STRReq() > rose.ghostStrength()) {
 									GLog.w( Messages.get(WndGhostHero.class, "cant_strength"));
@@ -1022,11 +1042,11 @@ public class DriedRose extends Artifact {
 								} else if (item.unique || ((Armor) item).checkSeal() != null) {
 									GLog.w( Messages.get(WndGhostHero.class, "cant_unique"));
 									hide();
-								} else if (!item.isIdentified()) {
-									GLog.w( Messages.get(WndGhostHero.class, "cant_unidentified"));
+								} else if (item.cursed || !item.cursedKnown()) {
+									GLog.w(Messages.get(WndGhostHero.class, "cant_cursed"));
 									hide();
-								} else if (item.cursed) {
-									GLog.w( Messages.get(WndGhostHero.class, "cant_cursed"));
+								}  else if (!item.levelKnown && ((Armor)item).STRReq(0) > rose.ghostStrength()){
+									GLog.w( Messages.get(WndGhostHero.class, "cant_strength_unknown"));
 									hide();
 								} else if (((Armor)item).STRReq() > rose.ghostStrength()) {
 									GLog.w( Messages.get(WndGhostHero.class, "cant_strength"));

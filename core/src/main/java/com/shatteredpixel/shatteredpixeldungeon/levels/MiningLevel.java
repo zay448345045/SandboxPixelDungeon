@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,11 @@ import com.shatteredpixel.shatteredpixeldungeon.Bones;
 import com.shatteredpixel.shatteredpixeldungeon.Challenges;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
-import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.*;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Bat;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.CrystalWisp;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.FungalSpinner;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.GnollGuard;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.Blacksmith;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.BlacksmithQuest;
@@ -42,7 +46,11 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.MiningLevelPainter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
-import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.*;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MineEntrance;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MineGiantRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MineLargeRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MineSecretRoom;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MineSmallRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.StandardRoom;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
@@ -114,7 +122,7 @@ public class MiningLevel extends CavesLevel {
 		ArrayList<Room> initRooms = new ArrayList<>();
 		initRooms.add ( roomEntrance = new MineEntrance());
 
-		//spawns 1 giant, 3 large, 6-8 small, and 1-2 secret cave rooms
+		//spawns 1 giant, 3 large, 6-8 small, and 2 secret cave rooms
 		StandardRoom s;
 		s = new MineGiantRoom();
 		s.setSizeCat();
@@ -134,7 +142,7 @@ public class MiningLevel extends CavesLevel {
 			initRooms.add(s);
 		}
 
-		rooms = Random.NormalIntRange(1, 2);
+		rooms = 2;
 		for (int i = 0; i < rooms; i++){
 			initRooms.add(new MineSecretRoom());
 		}
@@ -166,7 +174,7 @@ public class MiningLevel extends CavesLevel {
 	@Override
 	protected Painter painter() {
 		return new MiningLevelPainter()
-				.setGold(Random.NormalIntRange(42, 46))
+				.setGold(Random.NormalIntRange(45, 47))
 				.setWater(questType() == BlacksmithQuest.FUNGI ? 0.1f : 0.35f, 6)
 				.setGrass(questType() == BlacksmithQuest.FUNGI ? 0.65f : 0.10f, 3);
 	}

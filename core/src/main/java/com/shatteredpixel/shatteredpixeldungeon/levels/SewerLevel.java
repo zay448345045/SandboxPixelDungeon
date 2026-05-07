@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -119,12 +119,9 @@ public class SewerLevel extends RegularLevel {
 						1, 1, 1, 1, 1};
 	}
 	
-	public static void addSewerVisuals( Level level, Group group ) {
-		boolean isSewerLevel = LevelScheme.getRegion(level) == LevelScheme.REGION_SEWERS;
-		for (int i=0; i < level.length(); i++) {
-			if (level.visualMap[i] == Terrain.WALL_DECO && (isSewerLevel || level.visualRegions[i] == LevelScheme.REGION_SEWERS)) {
-				group.add( new Sink( i ) );
-			}
+	public static void addSewerVisualsAtTile( int region, Level level, Group group, int i ) {
+		if (level.visualMap[i] == Terrain.WALL_DECO && Dungeon.level.isVisualRegionAtTile(i, region, LevelScheme.REGION_SEWERS)) {
+			group.add( new Sink( i ) );
 		}
 	}
 	
@@ -180,6 +177,11 @@ public class SewerLevel extends RegularLevel {
 			if (visible = (pos < Dungeon.level.heroFOV.length && Dungeon.level.heroFOV[pos])) {
 				
 				super.update();
+				
+				if (Dungeon.level.visualMap[pos] != Terrain.WALL_DECO || !Dungeon.level.isVisualRegionAtTile(pos, LevelScheme.REGION_SEWERS)){
+					killAndErase();
+					return;
+				}
 				
 				if (!isFrozen() && (rippleDelay -= Game.elapsed) <= 0) {
 					Ripple ripple = GameScene.ripple( pos + Dungeon.level.width() );

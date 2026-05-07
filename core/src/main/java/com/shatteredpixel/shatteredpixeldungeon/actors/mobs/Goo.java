@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,11 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.actors.mobs;
 
-import com.shatteredpixel.shatteredpixeldungeon.*;
+import com.shatteredpixel.shatteredpixeldungeon.Assets;
+import com.shatteredpixel.shatteredpixeldungeon.Badges;
+import com.shatteredpixel.shatteredpixeldungeon.Challenges;
+import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
@@ -33,7 +37,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemsWithChanceDistrCo
 import com.shatteredpixel.shatteredpixeldungeon.effects.FloatingText;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.DriedRose;
-import com.shatteredpixel.shatteredpixeldungeon.items.keys.SkeletonKey;
+import com.shatteredpixel.shatteredpixeldungeon.items.keys.WornKey;
 import com.shatteredpixel.shatteredpixeldungeon.items.quest.GooBlob;
 import com.shatteredpixel.shatteredpixeldungeon.mechanics.Ballistica;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
@@ -378,19 +382,19 @@ public class Goo extends Mob implements MobBasedOnDepth {
 		// + 1 SkeletonKey
 
 		ItemsWithChanceDistrComp.ItemWithCount itemWithCount = new ItemsWithChanceDistrComp.ItemWithCount();
-		itemWithCount.items.add(new SkeletonKey());
+		itemWithCount.items.add(new WornKey());
 		itemWithCount.items.add(new GooBlob().quantity(2));
 		itemWithCount.setCount(6);
 		customLootInfo.distrSlots.add(itemWithCount);
 
 		itemWithCount = new ItemsWithChanceDistrComp.ItemWithCount();
-		itemWithCount.items.add(new SkeletonKey());
+		itemWithCount.items.add(new WornKey());
 		itemWithCount.items.add(new GooBlob().quantity(3));
 		itemWithCount.setCount(3);
 		customLootInfo.distrSlots.add(itemWithCount);
 
 		itemWithCount = new ItemsWithChanceDistrComp.ItemWithCount();
-		itemWithCount.items.add(new SkeletonKey());
+		itemWithCount.items.add(new WornKey());
 		itemWithCount.items.add(new GooBlob().quantity(4));
 		itemWithCount.setCount(1);
 		customLootInfo.distrSlots.add(itemWithCount);

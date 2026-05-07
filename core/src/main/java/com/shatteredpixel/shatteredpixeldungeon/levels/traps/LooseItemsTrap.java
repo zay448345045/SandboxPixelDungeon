@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -84,6 +84,10 @@ public class LooseItemsTrap extends Trap {
 	}
 
 	public static boolean dropAround(Item item, Char ch, int[] neighbours) {
+		return dropAround(item, ch.pos, ch, neighbours);
+	}
+	
+	public static boolean dropAround(Item item, int from, Char ch, int[] neighbours) {
 		int tries = 60;
 		int quantity = item.quantity();
 		int[] dropQuantities = new int[neighbours.length];
@@ -91,7 +95,7 @@ public class LooseItemsTrap extends Trap {
 
 			tries--;
 			int dropIndex = Random.Int(neighbours.length);
-			int cell = ch.pos + neighbours[dropIndex];
+			int cell = from + neighbours[dropIndex];
 			if (Dungeon.level.isPassable(cell, ch)) {
 				dropQuantities[dropIndex]++;
 				quantity--;
@@ -107,7 +111,7 @@ public class LooseItemsTrap extends Trap {
 			if (dropQuantities[i] > 0) {
 				Item toDrop = item.getCopy();
 				toDrop.quantity(dropQuantities[i]);
-				Dungeon.level.drop(toDrop,ch.pos + neighbours[i]).sprite.drop(ch.pos);
+				Dungeon.level.drop(toDrop,from + neighbours[i]).sprite.drop(from);
 			}
 		}
 

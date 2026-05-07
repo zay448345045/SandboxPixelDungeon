@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ public class AndroidMethodPanel extends AndroidCodeInputPanel {
 
 		desc.setText(AndroidIDEWindow.createSpannableStringWithColorsFromText(LuaMethodManager.descriptionForMethod(method)));
 
-		String modifiers = Modifier.toString(method.getModifiers());
+		String modifiers = Modifier.toString(method.getModifiers()).replace(" abstract", "").replace(" synchronized", "");
 		if (!modifiers.isEmpty()) modifiers += " ";
 
 		modifiers += method.getReturnType().getSimpleName() + " ";

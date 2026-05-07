@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ package com.shatteredpixel.shatteredpixeldungeon.ui;
 
 import com.shatteredpixel.shatteredpixeldungeon.Assets;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.BloodParticle;
@@ -122,11 +123,9 @@ public class BossHealthBar extends Component {
         if (numBars > 0) {
             int numLayouted = 0;
             float posY = y;
-            if (numBars > 1) posY -= 8;
-            if (numBars > 2) posY -= 4;
             int gap = 4 / numBars;
             for (BossHealthBarComp bar : bars) {
-                if (numLayouted++ <= 4) {
+                if (numLayouted++ < 4) {
                     bar.visible = bar.active = true;
                     bar.setPos(x, posY);
                     posY += bar.height() + gap;
@@ -136,192 +135,211 @@ public class BossHealthBar extends Component {
         }
     }
 
+	
     private static class BossHealthBarComp extends Component {
 
-        private static String asset = Assets.Interfaces.BOSSHP;
+    private static String asset = Assets.Interfaces.BOSSHP;
+		
+	private Image bar;
 
-        private Image bar;
+	private Image shieldHP;
+	private Image hp;
+	private BitmapText hpText;
 
-        private Image rawShielding;
-        private Image shieldedHP;
-        private Image hp;
-        private BitmapText hpText;
+	private Button bossInfo;
+	private BuffIndicator buffs;
 
-        private Button bossInfo;
-        private BuffIndicator buffs;
+	private Image skull;
+	private Emitter blood;
+	
+	private final Mob boss;
+	
+	private boolean large;
 
-        private Image skull;
-        private Emitter blood;
+	public BossHealthBarComp(Mob boss) {
+		super();
+		this.boss = boss;
+		
+		this.large = SPDSettings.interfaceSize() != 0;
+		
+		bar = large ? new Image(asset, 0, 16, 128, 30) : new Image(asset, 0, 0, 64, 16);
+		add(bar);
 
+		width = bar.width;
+		height = bar.height;
 
-        private final Mob boss;
+		shieldHP = large ? new Image(asset, 0, 55, 96, 9) : new Image(asset, 71, 5, 47, 4);
+		add(shieldHP);
 
-        public BossHealthBarComp(Mob boss) {
-            super();
-            this.boss = boss;
+		hp =  large ? new Image(asset, 0, 46, 96, 9) : new Image(asset, 71, 0, 47, 4);
+		add(hp);
 
-            bar = new Image(asset, 0, 0, 64, 16);
-            add(bar);
+		hpText = new BitmapText(PixelScene.pixelFont);
+		hpText.alpha(0.6f);
+		add(hpText);
 
-            width = bar.width;
-            height = bar.height;
+		bossInfo = new Button(){
+			@Override
+			protected void onClick() {
+				super.onClick();
+				if (boss != null){
+					GameScene.show(new WndInfoMob(boss));
+				}
+			}
 
-            rawShielding = new Image(asset, 15, 25, 47, 4);
-            rawShielding.alpha(0.5f);
-            add(rawShielding);
+			@Override
+			protected String hoverText() {
+				if (boss != null){
+					return boss.name();
+				}
+				return super.hoverText();
+			}
+		};
+		add(bossInfo);
+		
+		buffs = new BuffIndicator(boss, large);
+		add(buffs);
 
-            shieldedHP = new Image(asset, 15, 25, 47, 4);
-            add(shieldedHP);
+		if (boss != null && large) {
+			skull = boss.createSprite();
+		} else {
+			skull = new Image(asset, 64, 0, 6, 6);
+		}
+		add(skull);
 
-            hp = new Image(asset, 15, 19, 47, 4);
-            add(hp);
+		blood = new Emitter();
+		blood.pos(skull);
+		blood.pour(BloodParticle.FACTORY, 0.3f);
+		blood.autoKill = false;
+		blood.on = false;
+		add( blood );
+		
+		layout();
+	}
 
-            hpText = new BitmapText(PixelScene.pixelFont);
-            hpText.alpha(0.6f);
-            add(hpText);
+	@Override
+	protected void layout() {
+		bar.x = x;
+		bar.y = y;
 
-            bossInfo = new Button() {
-                @Override
-                protected void onClick() {
-                    super.onClick();
-                    if (boss != null) {
-                        GameScene.show(new WndInfoMob(boss));
-                    }
-                }
+		hp.x = shieldHP.x = bar.x+(large ? 30 : 15);
+		hp.y = shieldHP.y = bar.y+(large ? 2 : 3);
 
-                @Override
-                protected String hoverText() {
-                    if (boss != null) {
-                        return boss.name();
-                    }
-                    return super.hoverText();
-                }
-            };
-            add(bossInfo);
+		if (!large) hpText.scale.set(PixelScene.align(0.5f));
+		hpText.x = hp.x + (large ? (96-hpText.width())/2f : 1);
+		hpText.y = hp.y + (hp.height - (hpText.baseLine()+hpText.scale.y))/2f;
+		hpText.y -= 0.001f; //prefer to be slightly higher
+		PixelScene.align(hpText);
 
-            buffs = new BuffIndicator(boss, false);
-            add(buffs);
+		bossInfo.setRect(x, y, bar.width, bar.height);
 
-            skull = new Image(asset, 5, 18, 6, 6);
-            add(skull);
+		if (buffs != null) {
+			buffs.maxBuffs = 12;
+			if (large) {
+				//little extra width here for a 6th column
+				buffs.setRect(hp.x+1, hp.y + 12, 102, 34);
+			} else {
+				buffs.setRect(hp.x, hp.y + 5, 47, 16);
+			}
+		}
 
-            blood = new Emitter();
-            blood.pos(skull);
-            blood.pour(BloodParticle.FACTORY, 0.3f);
-            blood.autoKill = false;
-            blood.on = false;
-            add(blood);
+		int paneSize = large ? 30 : 16;
+		skull.x = bar.x + (paneSize - skull.width())/2f;
+		skull.y = bar.y + (paneSize - skull.height())/2f;
+		
+		width = bar.width;
+		height = bar.height;
+	}
 
-            layout();
-        }
+	@Override
+	public void update() {
+		super.update();
+		if (boss != null) {
+			if (!boss.isAlive() || !Dungeon.level.mobs.contains(boss)) {
+				removeBoss(boss, this);
+				return;
+			}
 
-        @Override
-        protected final void createChildren() {
-            super.createChildren();
-        }
+				int health = boss.HP;
+				int shield = boss.shielding();
+				int max = boss.HT;
 
-        @Override
-        protected void layout() {
-            bar.x = x;
-            bar.y = y;
+				float healthPercent = health/(float)max;
+				float shieldPercent = shield/(float)max;
 
-            hp.x = shieldedHP.x = rawShielding.x = bar.x + 15;
-            hp.y = shieldedHP.y = rawShielding.y = bar.y + 3;
+				if (healthPercent + shieldPercent > 1f){
+					float excess = healthPercent + shieldPercent;
+					healthPercent /= excess;
+					shieldPercent /= excess;
+				}
 
-            hpText.scale.set(PixelScene.align(0.5f));
-            hpText.x = hp.x + 1;
-            hpText.y = hp.y + (hp.height - (hpText.baseLine() + hpText.scale.y)) / 2f;
-            hpText.y -= 0.001f; //prefer to be slightly higher
-            PixelScene.align(hpText);
+				hp.scale.x = healthPercent;
+				shieldHP.scale.x = healthPercent + shieldPercent;
 
-            bossInfo.setRect(x, y, bar.width, bar.height);
+				if (boss.bleeding != blood.on){
+					if (boss.bleeding)  skull.tint( 0xcc0000, large ? 0.3f : 0.6f );
+					else                skull.resetColor();
+					bringToFront(blood);
+					blood.pos(skull);
+					blood.on = boss.bleeding;
+				}
+				
+				if (shield <= 0){
+					hpText.text(health + "/" + max);
+				} else {
+					hpText.text(health + "+" + shield +  "/" + max);
+				}
+				hpText.measure();
+				hpText.x = hp.x + (large ? (96-hpText.width())/2f : 1);
 
-            if (buffs != null) {
-                buffs.setRect(hp.x, hp.y + 5, 47, 8);
-            }
-
-            skull.x = bar.x + 5;
-            skull.y = bar.y + 5;
-
-            width = bar.width;
-            height = bar.height;
-        }
-
-        @Override
-        public void update() {
-            super.update();
-            if (boss != null) {
-                if (!boss.isAlive() || !Dungeon.level.mobs.contains(boss)) {
-                    removeBoss(boss, this);
-                    return;
-                }
-
-                int health = boss.HP;
-                int shield = boss.shielding();
-                int max = boss.HT;
-
-                hp.scale.x = Math.max(0, (health - shield) / (float) max);
-                shieldedHP.scale.x = health / (float) max;
-                rawShielding.scale.x = shield / (float) max;
-
-                if (boss.bleeding != blood.on) {
-                    if (boss.bleeding) skull.tint(0xcc0000, 0.6f);
-                    else skull.resetColor();
-                    blood.on = boss.bleeding;
-                }
-
-                if (shield <= 0) {
-                    hpText.text(health + "/" + max);
-                } else {
-                    hpText.text(health + "+" + shield + "/" + max);
-                }
-            }
-        }
-    }
-
-    public static void reset() {
-        bosses.clear();
-    }
-
-    private static final String BOSS_IDS = "boss_ids";
-    private static int[] loadedBossIDs;
-
-    public static void storeInBundle(Bundle bundle) {
-        int[] intArray = new int[bosses.size()];
-        for (int i = 0; i < intArray.length; i++)
-            intArray[i] = bosses.get(i).id();
-        bundle.put(BOSS_IDS, intArray);
-    }
-
-    public static void restoreFromBundle(Bundle bundle) {
-        loadedBossIDs = bundle.getIntArray(BOSS_IDS);
-    }
-
-    @Override
-    public synchronized void destroy() {
-        super.destroy();
-        if (instance == this) instance = null;
-    }
-
-
-    public static boolean bossBarActive() {
-        for (Mob boss : bosses) {
-            if (boss.showBossBar && boss.isAlive()) return true;
-        }
-        return false;
-    }
-
-    public static void doForEachBoss(Consumer<Mob> whatToDo) {
-        for (Mob boss : bosses)
-            whatToDo.accept(boss);
-    }
-
-    public static boolean bleedingActive() {
-        for (Mob boss : bosses) {
-            if (boss.bleeding) return true;
-        }
-        return false;
-    }
+			}
+		}
+	}
+	
+	
+	public static void reset() {
+		bosses.clear();
+	}
+	
+	private static final String BOSS_IDS = "boss_ids";
+	private static int[] loadedBossIDs;
+	
+	public static void storeInBundle(Bundle bundle) {
+		int[] intArray = new int[bosses.size()];
+		for (int i = 0; i < intArray.length; i++)
+			intArray[i] = bosses.get(i).id();
+		bundle.put(BOSS_IDS, intArray);
+	}
+	
+	public static void restoreFromBundle(Bundle bundle) {
+		loadedBossIDs = bundle.getIntArray(BOSS_IDS);
+	}
+	
+	@Override
+	public synchronized void destroy() {
+		super.destroy();
+		if (instance == this) instance = null;
+	}
+	
+	
+	public static boolean bossBarActive() {
+		for (Mob boss : bosses) {
+			if (boss.showBossBar && boss.isAlive()) return true;
+		}
+		return false;
+	}
+	
+	public static void doForEachBoss(Consumer<Mob> whatToDo) {
+		for (Mob boss : bosses)
+			whatToDo.accept(boss);
+	}
+	
+	public static boolean bleedingActive() {
+		for (Mob boss : bosses) {
+			if (boss.bleeding) return true;
+		}
+		return false;
+	}
 
     public static boolean isAssigned(Mob boss) {
         return bosses.contains(boss);

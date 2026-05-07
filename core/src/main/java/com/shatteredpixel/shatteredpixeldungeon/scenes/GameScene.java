@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.artifacts.DriedRose;
 import com.shatteredpixel.shatteredpixeldungeon.items.journal.Guidebook;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.Potion;
+import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.InventoryScroll;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfTeleportation;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.DimensionalSundial;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.TrinketCatalyst;
@@ -131,7 +132,7 @@ import com.shatteredpixel.shatteredpixeldungeon.windows.WndKeyBindings;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndMessage;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndOptions;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndResurrect;
-import com.watabou.NotAllowedInLua;
+import com.shatteredpixel.shatteredpixeldungeon.windows.WndUpgrade;
 import com.watabou.input.ControllerHandler;
 import com.watabou.input.KeyBindings;
 import com.watabou.input.PointerEvent;
@@ -146,8 +147,8 @@ import com.watabou.noosa.particles.Emitter;
 import com.watabou.noosa.tweeners.Tweener;
 import com.watabou.noosa.ui.Component;
 import com.watabou.utils.Callback;
-import com.watabou.utils.DeviceCompat;
 import com.watabou.utils.GameMath;
+import com.watabou.utils.PlatformSupport;
 import com.watabou.utils.Point;
 import com.watabou.utils.PointF;
 import com.watabou.utils.Random;
@@ -159,7 +160,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-@NotAllowedInLua
 public class GameScene extends DungeonScene {
 
 	static GameScene scene;
@@ -171,14 +171,12 @@ public class GameScene extends DungeonScene {
 	private FogOfWar fog;
 	private HeroSprite hero;
 
-	protected MenuPane menu;
 	private StatusPane status;
 
 	private BossHealthBar boss;
 
 	private GameLog log;
 	public static List<String> errorMsg = new ArrayList<>();
-
 
 	private static boolean invVisible = true;
 
@@ -194,7 +192,6 @@ public class GameScene extends DungeonScene {
 	}
 
 	private static PointF mainCameraPos;
-
 	@Override
 	public void create() {
 
@@ -338,24 +335,36 @@ public class GameScene extends DungeonScene {
 
 		menu = new MenuPane();
 		menu.camera = uiCamera;
-		menu.setPos( uiCamera.width-MenuPane.WIDTH, uiSize > 0 ? 0 : 1);
+		menu.setPos(menuBarMaxLeft, screentop);//changes in this line must be made in EditorScene as well…
 		add(menu);
 
 		status = new StatusPane( SPDSettings.interfaceSize() > 0 );
 		status.camera = uiCamera;
-		status.setRect(0, uiSize > 0 ? uiCamera.height-39 : 0, uiCamera.width, 0 );
+//		moved to DungeonScene#initBasics(): StatusPane.heroPaneExtraWidth = heroPaneExtraWidth;
+//		moved to DungeonScene#initBasics(): StatusPane.hpBarMaxWidth = hpBarMaxWidth;
+//		moved to DungeonScene#initBasics(): StatusPane.buffBarRowMaxWidths = buffBarRowLimits;
+//		moved to DungeonScene#initBasics(): StatusPane.buffBarRowAdjusts = buffBarRowAdjusts;
+		status.setRect(insets.left, uiSize > 0 ? uiCamera.height-39-insets.bottom : screentop, uiCamera.width - insets.left - insets.right, 0 );
 		add(status);
 
 		if (Dungeon.isLevelTesting()) {
+			RectF allInsets = Game.platform.getSafeInsets( PlatformSupport.INSET_ALL );
+			allInsets = allInsets.scale(1f / uiCamera.zoom);
 			sideControlPane = new SideControlPane(false);
 			sideControlPane.camera = uiCamera;
-			sideControlPane.setPos(0, status.isLarge() ? (PixelScene.landscape() ? 5 : 10) : status.bottom() + (PixelScene.landscape() ? 5 : 10));
+			sideControlPane.setPos(allInsets.left, status.isLarge() ? (PixelScene.landscape() ? 5 : 10) : status.bottom() + (PixelScene.landscape() ? 5 : 10));
 			add(sideControlPane);
 		}
 
 		boss = new BossHealthBar();
 		boss.camera = uiCamera;
-		boss.setPos( 6 + (uiCamera.width - boss.width())/2, 20);
+		boss.setPos( (uiCamera.width - boss.width())/2, screentop + (landscape() ? 7 : 26));
+		if (StatusPane.buffBarRowMaxWidths[2] != 0){
+			//if we potentially have a 3rd buff bar row, lower by 7px
+			boss.setPos(boss.left(), boss.top() + 7);
+		} else if (StatusPane.buffBarRowAdjusts[2] != 0){
+			boss.setPos(boss.left(), boss.top() + StatusPane.buffBarRowAdjusts[2]);
+		}
 		add(boss);
 
 		resume = new ResumeIndicator();
@@ -390,36 +399,46 @@ public class GameScene extends DungeonScene {
 		if (uiSize == 2) {
 			inventory = new InventoryPane();
 			inventory.camera = uiCamera;
-			inventory.setPos(uiCamera.width - inventory.width(), uiCamera.height - inventory.height());
+			inventory.setPos(uiCamera.width - inventory.width() - insets.right, uiCamera.height - inventory.height() - insets.bottom);
 			add(inventory);
 
-			toolbar.setRect( 0, uiCamera.height - toolbar.height() - inventory.height(), uiCamera.width, toolbar.height() );
+			toolbar.setRect( insets.left, uiCamera.height - toolbar.height() - inventory.height() - insets.bottom, uiCamera.width - insets.right, toolbar.height() );
 		} else {
-			toolbar.setRect( 0, uiCamera.height - toolbar.height(), uiCamera.width, toolbar.height() );
+			toolbar.setRect( insets.left, uiCamera.height - toolbar.height() - insets.bottom, uiCamera.width - insets.right, toolbar.height() );
 		}
+		
+		layoutTags();
 
-        layoutTags();
-
-        switch (InterlevelScene.mode) {
-            case RESURRECT:
-                Sample.INSTANCE.play(Assets.Sounds.TELEPORT);
-                ScrollOfTeleportation.appearVFX(Dungeon.hero);
-                SpellSprite.show(Dungeon.hero, SpellSprite.ANKH);
-                new Flare(5, 16).color(0xFFFF00, true).show(hero, 4f);
-                break;
-            case RETURN:
-                ScrollOfTeleportation.appearVFX(Dungeon.hero);
-                break;
-            case DESCEND:
-            case FALL:
+		switch (InterlevelScene.mode) {
+			case RESURRECT:
+				Sample.INSTANCE.play(Assets.Sounds.TELEPORT);
+				ScrollOfTeleportation.appearVFX( Dungeon.hero );
+				SpellSprite.show(Dungeon.hero, SpellSprite.ANKH);
+				new Flare( 5, 16 ).color( 0xFFFF00, true ).show( hero, 4f ) ;
+				break;
+			case RETURN:
+				if (Dungeon.level.pit[Dungeon.hero.pos] && !Dungeon.hero.isFlying()){
+					//delay this so falling into the chasm processes properly
+					SandboxPixelDungeon.runOnRenderThread(new Callback() {
+						@Override
+						public void call() {
+							ScrollOfTeleportation.appearVFX(Dungeon.hero);
+						}
+					});
+				} else {
+					ScrollOfTeleportation.appearVFX(Dungeon.hero);
+				}
+				break;
+			case DESCEND:
+			case FALL:
 				if (Dungeon.levelName.equals(Dungeon.customDungeon.getStart())) {
 					Badges.validateHeroStart();
 				}
-                if (Dungeon.hero.isAlive()) {
-                    Badges.validateNoKilling();
-                }
-                break;
-        }
+				if (Dungeon.hero.isAlive()) {
+					Badges.validateNoKilling();
+				}
+				break;
+		}
 
 		ArrayList<Item> dropped = Dungeon.droppedItems.get( Dungeon.levelName );
 		if (dropped != null) {
@@ -756,7 +775,7 @@ public class GameScene extends DungeonScene {
 						Actor.process();
 					}
 				};
-				
+
 				//if cpu cores are limited, game should prefer drawing the current frame
 				if (Runtime.getRuntime().availableProcessors() == 1) {
 					actorThread.setPriority(Thread.NORM_PRIORITY - 1);
@@ -837,9 +856,9 @@ public class GameScene extends DungeonScene {
 		}
 		//Camera.main.panTo(Dungeon.hero.sprite.center(), 5f);
 
-		//primarily for phones displays with notches
-		//TODO Android never draws into notch atm, perhaps allow it for center notches?
-		RectF insets = DeviceCompat.getSafeInsets();
+		//adjust spacing for elements based on display cutouts
+		// We use ALL here as some elements can be a fair but up the side of the screen
+		RectF insets = Game.platform.getSafeInsets( PlatformSupport.INSET_ALL );
 		insets = insets.scale(1f / uiCamera.zoom);
 
 		boolean tagsOnLeft = SPDSettings.flipTags();
@@ -911,7 +930,8 @@ public class GameScene extends DungeonScene {
 		mob.updateSpriteVisibility();
 		sortMobSprites();
 	}
-
+	
+	
 	@Override
 	protected synchronized void prompt(Component newPrompt) {
 
@@ -939,8 +959,13 @@ public class GameScene extends DungeonScene {
 	
 	public static void add( Mob mob, float delay ) {
 		Dungeon.level.mobs.add( mob );
-		scene.addMobSprite( mob );
-		Actor.addDelayed( mob, delay );
+		//mobs added on partial turns wait until next full turn to act
+		delay = (float)Math.ceil(Actor.now() + delay) - Actor.now();
+		if (scene != null) {
+			scene.addMobSprite(mob);
+			Actor.addDelayed(mob, delay);
+			mob.spendToWhole();
+		}
 	}
 
 	public static void add( CharHealthIndicator indicator ){
@@ -1141,7 +1166,7 @@ public class GameScene extends DungeonScene {
 			scene.terrainFeatures.growPlant( cell );
 		}
 	}
-	
+
 	public static void discoverTile( int pos, int oldValue ) {
 		if (scene != null) {
 			for (int i = 1; i < 6; i++) {
@@ -1222,10 +1247,12 @@ public class GameScene extends DungeonScene {
 				@Override
 				public void call() {
 					//greater than 0 to account for negative values (which have the first bit set to 1)
-					if (color > 0 && color < 0x01000000) {
-						scene.fadeIn(0xFF000000 | color, lightmode);
-					} else {
-						scene.fadeIn(color, lightmode);
+					if (scene != null) {
+						if (color > 0 && color < 0x01000000) {
+							scene.fadeIn(0xFF000000 | color, lightmode);
+						} else {
+							scene.fadeIn(color, lightmode);
+						}
 					}
 				}
 			});
@@ -1256,7 +1283,7 @@ public class GameScene extends DungeonScene {
 
 			@Override
 			public void update() {
-				alpha(gameOver.am);
+				alpha((float)Math.pow(gameOver.am, 2));
 				super.update();
 			}
 		};
@@ -1267,7 +1294,7 @@ public class GameScene extends DungeonScene {
 		restart.setSize(Math.max(80, restart.reqWidth()), 20);
 		restart.setPos(
 				align(uiCamera, (restart.camera.width - restart.width()) / 2),
-				align(uiCamera, (restart.camera.height - restart.height()) / 2 + restart.height()/2 + 16 - offset)
+				align(uiCamera, (restart.camera.height - restart.height()) / 2 + 8 - offset)
 		);
 		scene.add(restart);
 
@@ -1279,7 +1306,7 @@ public class GameScene extends DungeonScene {
 
 			@Override
 			public void update() {
-				alpha(gameOver.am);
+				alpha((float)Math.pow(gameOver.am, 2));
 				super.update();
 			}
 		};
@@ -1346,8 +1373,43 @@ public class GameScene extends DungeonScene {
 				return wnd;
 			}
 		}
-		
+
 		return null;
+	}
+	
+	//logic for preserving inventory selection windows on scene reset (e.g. via auto-rotate)
+	private static WndBag.ItemSelector savedSelector;
+
+	@Override
+	public synchronized void saveWindows() {
+		super.saveWindows();
+		if (scene != null && scene.inventory != null && scene.inventory.getSelector() != null){
+			savedSelector = scene.inventory.getSelector();
+		} else {
+			for (Gizmo g : members.toArray(new Gizmo[0])){
+				if (g instanceof WndBag){
+					savedSelector = ((WndBag) g).getSelector();
+				//also keeps selector active over inventory scroll cancel and upgrade window
+				} else if (g instanceof InventoryScroll.WndConfirmCancel){
+					savedSelector = ((InventoryScroll.WndConfirmCancel) g).getItemSelector();
+				} else if (g instanceof WndUpgrade){
+					savedSelector = ((WndUpgrade) g).getItemSelector();
+				}
+			}
+		}
+	}
+
+	@Override
+	public synchronized void restoreWindows() {
+		super.restoreWindows();
+		if (savedSelector != null){
+			if (scene != null && scene.inventory != null){
+				scene.inventory.setSelector(savedSelector);
+			} else {
+				addToFront(new WndBag(Dungeon.hero.belongings.backpack, savedSelector));
+			}
+			savedSelector = null;
+		}
 	}
 
 	@Override

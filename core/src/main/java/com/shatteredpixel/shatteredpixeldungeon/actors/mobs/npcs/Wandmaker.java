@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,22 +27,20 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.AscensionChallenge;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.QuestNPC;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.WandmakerQuest;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
-import com.shatteredpixel.shatteredpixeldungeon.items.quest.CorpseDust;
-import com.shatteredpixel.shatteredpixeldungeon.items.quest.Embers;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
 import com.shatteredpixel.shatteredpixeldungeon.levels.RegularLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
-import com.shatteredpixel.shatteredpixeldungeon.plants.Rotberry;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.WandmakerSprite;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndQuest;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndWandmaker;
 import com.watabou.noosa.Game;
 import com.watabou.utils.Callback;
-import com.watabou.utils.Point;
+import com.watabou.utils.PathFinder;
 import com.watabou.utils.Random;
+import com.watabou.utils.Reflection;
 
 import java.util.List;
 import java.util.Locale;
@@ -86,21 +84,10 @@ public class Wandmaker extends QuestNPC<WandmakerQuest> {
 
 		if(quest == null || quest.type() < 0) return true;
 
-		if (quest.given()) {
+		if (quest.given() || autoCompletedQuest) {
 			
-			Item item;
-			switch (quest.type()) {
-				case WandmakerQuest.DUST:
-				default:
-					item = Dungeon.hero.belongings.getItem(CorpseDust.class);
-					break;
-				case WandmakerQuest.CANDLE:
-					item = Dungeon.hero.belongings.getItem(Embers.class);
-					break;
-				case WandmakerQuest.SEED:
-					item = Dungeon.hero.belongings.getItem(Rotberry.Seed.class);
-					break;
-			}
+			Class<? extends Item> questItemClass = quest.getQuestItemType();
+			Item item = autoCompletedQuest ? Reflection.newInstance(questItemClass) : Dungeon.hero.belongings.getItem(questItemClass);;
 
 			if (item != null) {
 				Game.runOnRenderThread(new Callback() {
@@ -167,29 +154,38 @@ public class Wandmaker extends QuestNPC<WandmakerQuest> {
 		if (roomEntrance == null) {
 			roomEntrance = rooms.get(Random.Int(rooms.size()));
 		}
-
+		
+		
+		
 		boolean validPos;
-		int tries = level.length();
-		//Do not spawn wandmaker on the entrance, a trap, or on bad terrain.
+		//Do not spawn wandmaker on the entrance, in front of a door, or on bad terrain.
+		int tries = 0;
+		int dist = 2;
+		int maxTries = level.length() * 2;
 		do {
 			validPos = true;
-			pos = level.pointToCell(roomEntrance.random((roomEntrance.width() > 6 && roomEntrance.height() > 6) ? 2 : 1));
-			if (pos == level.entrance()) {
+			if (tries > 30 && dist > 0){
+				tries = 0;
+				dist--;
+			}
+			pos = level.pointToCell(roomEntrance.random(dist));
+			if (pos == level.entrance() || level.solid[pos]){
 				validPos = false;
 			}
-			for (Point door : roomEntrance.connected.values()) {
-				if (level.trueDistance(pos, level.pointToCell(door)) <= 1) {
+			for (int i : PathFinder.NEIGHBOURS4){
+				if (level.map[pos+i] == Terrain.DOOR){
 					validPos = false;
 				}
 			}
 			if (level.traps.get(pos) != null
 					|| !level.isPassable(pos, this)
-					|| level.map[pos] == Terrain.EMPTY_SP) {
+					|| level.map[pos] == Terrain.EMPTY_SP){
 				validPos = false;
 			}
-			tries--;
+			tries++;
 			if (!validPos) pos = -1;
-		} while (pos == -1 && tries > 0);
+		} while (pos == -1 && tries < maxTries);
+		
 		if (pos != -1) level.mobs.add(this);
 	}
 

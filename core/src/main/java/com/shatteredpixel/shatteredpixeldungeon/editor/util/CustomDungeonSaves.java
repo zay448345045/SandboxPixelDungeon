@@ -9,12 +9,14 @@ import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObject;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObjectManager;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.LuaManager;
+import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomCharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomGameObject;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomObjectClass;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.LuaClassGenerator;
 import com.shatteredpixel.shatteredpixeldungeon.editor.EditorScene;
 import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.parts.transitions.TransitionEditPart;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.MobSprites;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomLevel;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
@@ -35,6 +37,7 @@ import com.watabou.utils.Function;
 import com.watabou.utils.Reflection;
 
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -108,12 +111,14 @@ public class CustomDungeonSaves {
         return export;
     }
 
-    public static FileHandle[] uploadDungeon(String dungeonName) {
+    public static FileHandle[] getFilesToUploadDungeon(String dungeonName) throws FileNotFoundException {
         FileUtils.setDefaultFileType(FileUtils.getFileTypeForCustomDungeons());
         setCurDirectory(DUNGEON_FOLDER + dungeonName.replace(' ', '_') + "/");
         FileHandle dir = FileUtils.getFileHandle(curDirectory);
 
-        if (!dir.exists() || !dir.isDirectory()) return null;
+        if (!dir.exists() || !dir.isDirectory()) {
+            throw new FileNotFoundException(dir.path());
+        }
 
         return dir.list();
     }
@@ -192,7 +197,9 @@ public class CustomDungeonSaves {
         if (!file.exists()) {
             throw new RenameRequiredException(FileUtils.getFileHandle(DUNGEON_FOLDER + findActualDungeonFolderName(name)), name, null);
         }
-        return (CustomDungeon) FileUtils.bundleFromStream(file.read()).get(DUNGEON);
+        CustomDungeon dungeon = (CustomDungeon) FileUtils.bundleFromStream(file.read()).get(DUNGEON);
+        if (dungeon != null) dungeon.maybeAssingCoreIdIfMissing(file);
+        return dungeon;
     }
 
     public static CustomLevel loadLevel(String name) throws IOException, RenameRequiredException {
@@ -347,10 +354,8 @@ public class CustomDungeonSaves {
                     }
                 }
                 try {
-                    FileHandle file = FileUtils.getFileHandleWithDefaultPath(FileUtils.getFileTypeForCustomDungeons(), DUNGEON_FOLDER + path + "/" + DUNGEON_INFO);
-                    if (file.exists()) {
-                        Info info = (Info) FileUtils.bundleFromStream(file.read()).get(INFO);
-                        info.lastModified = file.lastModified();
+                    Info info = getDungeonInfo(path);
+                    if (info != null) {
                         result.add(info);
                     }
                 } catch (IOException e) {
@@ -361,6 +366,16 @@ public class CustomDungeonSaves {
             }
             Collections.sort(result);
             return result;
+    }
+    
+    public static Info getDungeonInfo(String dungeonName) throws IOException {
+        FileHandle file = FileUtils.getFileHandleWithDefaultPath(FileUtils.getFileTypeForCustomDungeons(), DUNGEON_FOLDER + dungeonName.replace(' ', '_') + "/" + DUNGEON_INFO);
+        if (file.exists()) {
+            Info info = (Info) FileUtils.bundleFromStream(file.read()).get(INFO);
+            info.lastModified = file.lastModified();
+            return info;
+        }
+        return null;
     }
 
     public static FileHandle getAdditionalFilesDir() {
@@ -517,10 +532,11 @@ public class CustomDungeonSaves {
             obj.onDelete(customObject);
         }
 
-        if (customObject instanceof CustomGameObject)
+        if (customObject instanceof CustomGameObject) {
             ((CustomGameObject<?>) customObject).inventoryCategory().updateCustomObjects();
-
-        customObject.reloadSprite();
+        } else if (customObject instanceof CustomCharSprite) {
+            MobSprites.instance().updateCustomObjects();
+        }
 	}
 
     public static String fileName(CustomObject customObject) {
@@ -656,6 +672,7 @@ public class CustomDungeonSaves {
     public static class Info implements Comparable<Info>, Bundlable {
 
         public String name;
+		public String coreID;
         public int version;
         public long lastModified;
 
@@ -667,8 +684,9 @@ public class CustomDungeonSaves {
         public Info() {
         }
 
-        public Info(String name, int version, int numLevels, int hashcode, boolean downloaded) {
+        public Info(String name, String coreID, int version, int numLevels, int hashcode, boolean downloaded) {
             this.name = name;
+			this.coreID = coreID;
             this.version = version;
             this.numLevels = numLevels;
             this.hashcode = hashcode;
@@ -683,25 +701,29 @@ public class CustomDungeonSaves {
         }
 
         private static final String NAME = "name";
+		private static final String CORE_ID = "core_id";
         private static final String VERSION = "version";
-        private static final String NUM_LEVLES = "num_levels";
+        private static final String NUM_LEVELS = "num_levels";
         private static final String HASHCODE = "hashcode";
         private static final String DOWNLOADED = "downloaded";
 
         @Override
         public void restoreFromBundle(Bundle bundle) {
             name = bundle.getString(NAME);
+			coreID = bundle.getString(CORE_ID);
             version = bundle.getInt(VERSION);
-            numLevels = bundle.getInt(NUM_LEVLES);
+            numLevels = bundle.getInt(NUM_LEVELS);
             hashcode = bundle.getInt(HASHCODE);
             downloaded = bundle.getBoolean(DOWNLOADED);
+//            downloaded = false;
         }
 
         @Override
         public void storeInBundle(Bundle bundle) {
             bundle.put(NAME, name);
+			bundle.put(CORE_ID, coreID);
             bundle.put(VERSION, version);
-            bundle.put(NUM_LEVLES, numLevels);
+            bundle.put(NUM_LEVELS, numLevels);
             bundle.put(HASHCODE, hashcode);
             bundle.put(DOWNLOADED, downloaded);
         }

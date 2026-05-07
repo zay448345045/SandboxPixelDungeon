@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ public class GnollGuard extends Mob {
 
 	public void linkSapper( GnollSapper sapper){
 		this.sapperID = sapper.id();
-		if (sprite.extraCode instanceof GnollGuardSprite.EarthArmor) {
+		if (sprite != null && sprite.extraCode instanceof GnollGuardSprite.EarthArmor) {
 			((GnollGuardSprite.EarthArmor) sprite.extraCode).setupArmor(sprite);
 		}
 	}
@@ -74,7 +74,7 @@ public class GnollGuard extends Mob {
 	public void loseSapper(){
 		if (sapperID != -1){
 			sapperID = -1;
-			if (sprite.extraCode instanceof GnollGuardSprite.EarthArmor){
+			if (sprite != null && sprite.extraCode instanceof GnollGuardSprite.EarthArmor){
 				((GnollGuardSprite.EarthArmor) sprite.extraCode).loseArmor();
 			}
 		}

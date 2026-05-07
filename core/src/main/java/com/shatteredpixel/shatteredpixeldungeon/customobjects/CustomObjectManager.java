@@ -4,10 +4,10 @@
  *  * Copyright (C) 2012-2015 Oleg Dolya
  *  *
  *  * Shattered Pixel Dungeon
- *  * Copyright (C) 2014-2024 Evan Debenham
+ *  * Copyright (C) 2014-2025 Evan Debenham
  *  *
  *  * Sandbox Pixel Dungeon
- *  * Copyright (C) 2023-2024 AlphaDraxonis
+ *  * Copyright (C) 2023-2025 AlphaDraxonis
  *  *
  *  * This program is free software: you can redistribute it and/or modify
  *  * it under the terms of the GNU General Public License as published by
@@ -30,10 +30,12 @@ import com.badlogic.gdx.files.FileHandle;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
+import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomCharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomGameObject;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.blueprints.CustomMob;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomObjectClass;
+import com.shatteredpixel.shatteredpixeldungeon.editor.inv.categories.MobSprites;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.LoadCustomObjects;
@@ -174,6 +176,8 @@ public final class CustomObjectManager {
 
 		if (obj instanceof CustomGameObject) {
 			((CustomGameObject<?>) obj).inventoryCategory().addCustomObject(((CustomGameObject<?>) obj).getUserContentClass());
+		} else if (obj instanceof CustomCharSprite) {
+			MobSprites.instance().addCustomObject((CustomCharSprite) obj);
 		}
 
 		return obj;

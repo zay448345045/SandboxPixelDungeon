@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,11 +24,27 @@
 
 package com.shatteredpixel.shatteredpixeldungeon;
 
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomGameObjectClass;
+import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.CustomObjectClass;
+import com.shatteredpixel.shatteredpixeldungeon.editor.Copyable;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditBuffComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditHeapComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditItemComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditMobComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditPlantComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditRoomComp;
+import com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.EditTrapComp;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.other.RandomItem;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.BiPredicate;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.Consumer;
+import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
+import com.shatteredpixel.shatteredpixeldungeon.levels.traps.Trap;
+import com.shatteredpixel.shatteredpixeldungeon.plants.Plant;
+import com.watabou.NotAllowedInLua;
 import com.watabou.utils.Bundlable;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.Function;
@@ -43,7 +59,7 @@ import java.util.Set;
 /**
  * This superclass is responsible that certain method calls reach all variables and fields of subclasses
  */
-public abstract class GameObject implements Bundlable {
+public abstract class GameObject implements Bundlable, Copyable<GameObject> {
 
 	public int sparseArrayKey() {
 		return 0;
@@ -57,14 +73,59 @@ public abstract class GameObject implements Bundlable {
 		return null;
 	}
 
+	@NotAllowedInLua
+	public boolean storeEverythingInBundle = false;
+	@NotAllowedInLua
 	public void copyStats(GameObject template) {
 		if (template == null) return;
 		if (getClass() != template.getClass()) return;
 		Bundle bundle = new Bundle();
+		template.storeEverythingInBundle = true;
 		bundle.put("OBJ", template);
+		template.storeEverythingInBundle = false;
 		bundle.getBundle("OBJ").put(CustomGameObjectClass.INHERIT_STATS, true);
 
 		restoreFromBundle(bundle.getBundle("OBJ"));
+	}
+	
+	public static boolean areEqual(GameObject a, GameObject b) {
+		if (a == null && b == null) return true;
+		if (a == null || b == null) return false;
+		if (a.getClass() != b.getClass()) return false;
+		
+		if (a instanceof Item)    return EditItemComp.areEqual(((Item) a), (Item) b);
+		if (a instanceof Mob)     return EditMobComp.areEqual(((Mob) a), (Mob) b);
+		if (a instanceof Trap)    return EditTrapComp.areEqual(((Trap) a), (Trap) b);
+		if (a instanceof Plant)   return EditPlantComp.areEqual(((Plant) a), (Plant) b);
+		if (a instanceof Heap)    return EditHeapComp.areEqual(((Heap) a), (Heap) b);
+		if (a instanceof Buff)    return EditBuffComp.areEqual(((Buff) a), (Buff) b);
+		if (a instanceof Room)    return EditRoomComp.areEqual(((Room) a), (Room) b);
+//		if (a instanceof Barrier)		return EditBarrierComp.areEqual(((Barrier) a), (Barrier) b);
+//		if (a instanceof ArrowCell) 	return EditArrowCellComp.areEqual(((ArrowCell) a), (ArrowCell) b);
+//		if (a instanceof Checkpoint)    return EditCheckpointComp.areEqual(((Checkpoint) a), (Checkpoint) b);
+		return false;
+	}
+	
+	@NotAllowedInLua
+	public boolean detectRecursion() {
+		if (this instanceof CustomObjectClass) {
+			RecursionDetectionResult result = new RecursionDetectionResult();
+			int id = ((CustomObjectClass) this).getIdentifier();
+			Function<GameObject, ModifyResult> whatToDo = obj -> {
+				if (obj instanceof CustomObjectClass && ((CustomObjectClass) obj).getIdentifier() == id) {
+					result.value = true;
+					return ModifyResult.removeFully();
+				}
+				return ModifyResult.noChange();
+			};
+			doOnAllGameObjects(whatToDo);
+			return result.value;
+		}
+		return false;
+	}
+	
+	private static final class RecursionDetectionResult {
+		private boolean value;
 	}
 	
 	public void initAsInventoryItem() {

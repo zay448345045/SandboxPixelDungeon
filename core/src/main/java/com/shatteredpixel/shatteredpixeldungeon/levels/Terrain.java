@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ public class Terrain {
 	public static final int EXIT			= 8;
 	public static final int EMBERS			= 9;
 	public static final int LOCKED_DOOR		= 10;
+	public static final int HERO_LKD_DR     = 38; //a door that was locked by the skeleton key
 	public static final int CRYSTAL_DOOR	= 31;
 	public static final int PEDESTAL		= 11;
 	public static final int WALL_DECO		= 12;
@@ -62,10 +63,23 @@ public class Terrain {
 	public static final int CUSTOM_DECO_EMPTY= 34; //regular empty tile that can't be overridden, used for custom visuals mainly
 	public static final int STATUE			= 25;
 	public static final int STATUE_SP		= 26;
+	
 	//These decorations are environment-specific
-	//33 and 34 are reserved for future statue-like decorations WARNING
 	public static final int MINE_CRYSTAL    = 35;
 	public static final int MINE_BOULDER    = 36;
+	
+	
+	public static final int BARREL = 40;
+	public static final int BARREL_ALT = 41;
+	public static final int CAGE = 42;
+	public static final int CAGE_ALT = 43;
+	public static final int METAL_STRUCTURE = 44;
+	public static final int METAL_STRUCTURE_ALT = 45;
+	public static final int FLAMING_PEDESTAL = 46;
+	public static final int FLAMING_PEDESTAL_ALT = 47;
+	public static final int RUBBLE = 48;
+	public static final int RUBBLE_ALT = 49;
+	
 
 	public static final int WATER		    = 29;
 
@@ -98,6 +112,7 @@ public class Terrain {
 		flags[EXIT]			= PASSABLE;
 		flags[EMBERS]		= PASSABLE;
 		flags[LOCKED_DOOR]	= LOS_BLOCKING | SOLID;
+		flags[HERO_LKD_DR]  = flags[LOCKED_DOOR];
 		flags[CRYSTAL_DOOR]	= SOLID;
 		flags[COIN_DOOR]	= flags[LOCKED_DOOR];
 		flags[MIMIC_DOOR]	= flags[DOOR] - PASSABLE;
@@ -128,9 +143,14 @@ public class Terrain {
 		flags[STATUE_SP] = flags[STATUE];
 		flags[SIGN]			= SOLID;
 		flags[SIGN_SP]		= flags[SIGN];
-
+		
 		flags[MINE_CRYSTAL] = SOLID;
 		flags[MINE_BOULDER] = SOLID;
+		
+		flags[BARREL] = flags[CAGE] = flags[METAL_STRUCTURE] = flags[FLAMING_PEDESTAL] = flags[RUBBLE] = flags[STATUE];
+		flags[BARREL_ALT] = flags[CAGE_ALT] = flags[METAL_STRUCTURE_ALT] = flags[FLAMING_PEDESTAL_ALT] = flags[RUBBLE_ALT] = flags[STATUE_SP];
+		flags[BARREL] |= FLAMABLE;
+		flags[BARREL_ALT] |= FLAMABLE;
 
 	}
 

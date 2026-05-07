@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ package com.shatteredpixel.shatteredpixeldungeon.tiles;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.watabou.noosa.Image;
 import com.watabou.noosa.TextureFilm;
@@ -91,19 +92,18 @@ public abstract class DungeonTilemap extends Tilemap {
 	public int screenToTile(int x, int y ){
 		return screenToTile(x, y, false);
 	}
-
+	
 	private static final float BORDER_SNAPPING = 0.5f;
-	//wall assist is used to make raised perspective tapping a bit easier.
-	// If the pressed tile is a wall tile, the tap can be 'bumped' down into a none-wall tile.
-	// currently this happens if the bottom 1/4 of the wall tile is pressed.
+	
 	public int screenToTile(int x, int y, boolean wallAssist ) {
 		PointF p = camera().screenToCamera( x, y ).
-			offset( this.point().negate() ).
-			invScale( SIZE );
-
-		//snap to the edges of the tilemap
+				offset( this.point().negate() ).
+				invScale( SIZE );
+		
+		//snap to the edges of the tilemap:
 //		p.x = GameMath.gate(0, p.x, Dungeon.level.width()-0.001f);
 //		p.y = GameMath.gate(0, p.y, Dungeon.level.height()-0.001f);
+		//DON’T snap to the edges of the tilemap:
 		if (p.x < 0) {
 			if (p.x >= -BORDER_SNAPPING) p.x = 0;
 			else return -1;
@@ -124,25 +124,44 @@ public abstract class DungeonTilemap extends Tilemap {
 				else return -1;
 			}
 		}
-
+		
 		int cell = (int)p.x + (int)p.y * Dungeon.level.width();
-		if (cell >= Dungeon.level.length() || cell < 0) return -1;
-
+		
+		//wall assist is used to make raised perspective tapping a bit easier.
+		// If the pressed tile is a wall tile, the tap can be 'bumped' down into a none-wall tile.
+		// currently this happens if the bottom 1/4 of the wall tile is pressed.
 		if (wallAssist
 				&& map != null
-				&& DungeonTileSheet.wallStitcheable(map[cell])){
-
+				&& isWallAssistable(cell)){
+			
 			if (cell + mapWidth < size
 					&& p.y % 1 >= 0.75f
-					&& !DungeonTileSheet.wallStitcheable(map[cell + mapWidth])){
+					&& !isWallAssistable(cell + mapWidth)){
 				cell += mapWidth;
 			}
-
+			
 		}
-
+		
 		return cell;
 	}
 
+	private boolean isWallAssistable(int cell){
+		if (map == null || cell >= size){
+			return false;
+		}
+
+		if (DungeonTileSheet.wallStitcheable(map[cell])){
+			return true;
+		}
+
+		//caves region deco is very wall-like, so it counts
+		if (map[cell] == Terrain.METAL_STRUCTURE || map[cell] == Terrain.METAL_STRUCTURE_ALT) {
+			return true;
+		}
+
+		return false;
+	}
+	
 	@Override
 	public boolean overlapsPoint( float x, float y ) {
 		return true;
@@ -186,7 +205,11 @@ public abstract class DungeonTilemap extends Tilemap {
 				(pos % Dungeon.level.width() + 0.5f) * SIZE,
 				(pos / Dungeon.level.width() + 0.1f) * SIZE );
 	}
-
+	
+	public static int worldToTile( float x, float y, int width){
+		return (int)(x / SIZE) + ((int)(y / SIZE) * width);
+	}
+	
 	@Override
 	public boolean overlapsScreenPoint( int x, int y ) {
 		return true;

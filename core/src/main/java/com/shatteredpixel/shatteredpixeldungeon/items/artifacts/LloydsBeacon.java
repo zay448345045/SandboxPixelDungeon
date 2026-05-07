@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -326,7 +326,7 @@ public class LloydsBeacon extends Artifact {
 	public class beaconRecharge extends ArtifactBuff{
 		@Override
 		public boolean act() {
-			if (charge < chargeCap && !cursed && Regeneration.regenOn()) {
+			if (charge < chargeCap && !cursed && Regeneration.regenOn() && rechargeRule.normalRechargeable()) {
 				partialCharge += 1 / (100f - (chargeCap - charge)*10f);
 
 				while (partialCharge >= 1) {

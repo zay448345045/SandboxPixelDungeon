@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -212,7 +212,9 @@ public class Buff extends Actor {
 	
 	//creates a fresh instance of the buff and attaches that, this allows duplication.
     public static <T extends Buff> T append(Char target, Class<T> buffClass) {
-        return append(target, Reflection.newInstance(buffClass));
+		T buff = Reflection.newInstance(buffClass);
+		buff.attachTo(target);
+		return buff;
     }
 
 	public static <T extends Buff> T append(Char target, T buff) {
@@ -289,7 +291,7 @@ public class Buff extends Actor {
 
 
     @Override
-    public Actor getCopy() {
+    public Buff getCopy() {
         Buff b = (Buff) super.getCopy();
         b.target = null;//Need to add later!
         return b;

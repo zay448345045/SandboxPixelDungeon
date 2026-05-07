@@ -1,5 +1,6 @@
 package com.shatteredpixel.shatteredpixeldungeon.editor.levels;
 
+import com.badlogic.gdx.files.FileHandle;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.QuickSlot;
@@ -30,6 +31,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.quests.Quest;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.QuestNPC;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.WandmakerQuest;
 import com.shatteredpixel.shatteredpixeldungeon.editor.recipes.CustomRecipe;
+import com.shatteredpixel.shatteredpixeldungeon.editor.recipes.WndDisableRecipes;
 import com.shatteredpixel.shatteredpixeldungeon.editor.scene.ZonePrompt;
 import com.shatteredpixel.shatteredpixeldungeon.editor.scene.undo.Undo;
 import com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemsWithChanceDistrComp;
@@ -40,15 +42,18 @@ import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.ItemStatusHandler;
+import com.shatteredpixel.shatteredpixeldungeon.items.Recipe;
 import com.shatteredpixel.shatteredpixeldungeon.items.Stylus;
 import com.shatteredpixel.shatteredpixeldungeon.items.journal.CustomDocumentPage;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.Potion;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfStrength;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.brews.Brew;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.brews.PotionCocktail;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.elixirs.Elixir;
 import com.shatteredpixel.shatteredpixeldungeon.items.potions.exotic.ExoticPotion;
 import com.shatteredpixel.shatteredpixeldungeon.items.rings.Ring;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.Scroll;
+import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfTransmutation;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfUpgrade;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfWipeOut;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.exotic.ExoticScroll;
@@ -72,6 +77,7 @@ import com.watabou.utils.Function;
 import com.watabou.utils.Random;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -92,12 +98,13 @@ public class CustomDungeon implements Bundlable {
     public static boolean knowsEverything;
 
     private String name;
+    private String coreID = "";//not necessarily unique! just a way to distinguish very different dungeons.
     private String lastEditedFloor;
 
     private String startFloor;
     private Set<String> ratKingLevels;
     private List<ItemDistribution<? extends Bundlable>> itemDistributions;
-    private Map<String, LevelScheme> floors = new HashMap<>();
+    private final Map<String, LevelScheme> floors = new HashMap<>();
 
     //heroSubClasses assumes that there are exactly 2 subclasses per hero, see HeroSubClass.getIndex() for more details
     public boolean[] heroesEnabled, heroSubClassesEnabled;
@@ -118,7 +125,7 @@ public class CustomDungeon implements Bundlable {
     public Set<CustomTileLoader.SimpleCustomTile> customTiles;
 
     public List<CustomRecipe> recipes;
-    public Set<Integer> blockedRecipes;
+    public Set<Class<? extends Recipe>> blockedRecipes;
     public Set<Class<? extends Item>> blockedRecipeResults;
 
     public int nextParticleID = 1;
@@ -131,6 +138,7 @@ public class CustomDungeon implements Bundlable {
     public CustomDungeon(String name) {
 
         this.name = name;
+        this.coreID = generateCoreID( System.currentTimeMillis() );
         ratKingLevels = new HashSet<>();
         itemDistributions = new ArrayList<>(5);
         customTiles = new HashSet<>(5);
@@ -152,6 +160,17 @@ public class CustomDungeon implements Bundlable {
     }
 
     public CustomDungeon() {
+    }
+    
+    private String generateCoreID(long timeStamp) {
+        return Long.toHexString(timeStamp) + Long.toHexString(new SecureRandom().nextLong());
+    }
+	
+    @NotAllowedInLua
+	public void maybeAssingCoreIdIfMissing(FileHandle dataDotDatFile) {
+        if (coreID.isEmpty()) {
+            coreID = generateCoreID(dataDotDatFile.lastModified());
+        }
     }
 
 
@@ -221,7 +240,7 @@ public class CustomDungeon implements Bundlable {
         if (item.customImage != null) {
             return new ItemSprite(item, item.glowing());
         }
-        return new ItemSprite(getItemSpriteOnSheet(item), item.glowing());
+        return new ItemSprite(getItemSpriteOnSheet(item), item.glowing(), item.emitter());
     }
 
     public static int getItemSpriteOnSheet(Item item) {
@@ -233,7 +252,7 @@ public class CustomDungeon implements Bundlable {
         if (Dungeon.customDungeon == null) {
             if (item instanceof Scroll) {
                 return ItemSpriteSheet.SCROLL_HOLDER;
-            } else if (item instanceof Potion && !(item instanceof Elixir || item instanceof Brew)) {
+            } else if (item instanceof Potion && !(item instanceof Elixir || item instanceof Brew || item instanceof PotionCocktail)) {
                 return ItemSpriteSheet.POTION_HOLDER;
             } else if (item instanceof Ring) {
                 return ItemSpriteSheet.RING_HOLDER;
@@ -252,7 +271,7 @@ public class CustomDungeon implements Bundlable {
             code = (scrollRuneLabels == null || !scrollRuneLabels.containsKey(c)) ?
                     ItemSpriteSheet.SCROLL_HOLDER :
                     Scroll.runes.get(scrollRuneLabels.get(c)) + (item instanceof ExoticScroll ? 16 : 0);
-        } else if (item instanceof Potion && !(item instanceof Elixir || item instanceof Brew)) {
+        } else if (item instanceof Potion && !(item instanceof Elixir || item instanceof Brew || item instanceof PotionCocktail)) {
             if (item instanceof ExoticPotion) c = ExoticPotion.exoToReg.get(c);
             code = (potionColorLabels == null || !potionColorLabels.containsKey(c)) ?
                     ItemSpriteSheet.POTION_HOLDER :
@@ -284,7 +303,7 @@ public class CustomDungeon implements Bundlable {
     }
 
     public static String maybeFixIncorrectNameEnding(String s) {
-        if (s.endsWith(".")) {
+        if (s != null && s.endsWith(".")) {
             s += " ";
         }
         return s;
@@ -439,7 +458,7 @@ public class CustomDungeon implements Bundlable {
             itemDistributions.add(sty);
         }
         ItemDistribution.Items soTransmutation = new ItemDistribution.Items(true);
-        soTransmutation.getObjectsToDistribute().add(new StoneOfEnchantment());//I wonder if the comment in shatteredPD is a mistake...
+        soTransmutation.getObjectsToDistribute().add(new ScrollOfTransmutation());
         for (int i = 6; i < 20; i++) {
             if (i % 5 != 0) soTransmutation.getLevels().add(Integer.toString(i));
         }
@@ -561,6 +580,7 @@ public class CustomDungeon implements Bundlable {
 
 
     private static final String NAME = "name";
+	private static final String CORE_ID = "core_id";
     private static final String LAST_EDITED_FLOOR = "last_edited_floor";
     private static final String START_FLOOR = "start_floor";
     private static final String RAT_KING_LEVELS = "rat_king_levels";
@@ -570,7 +590,7 @@ public class CustomDungeon implements Bundlable {
     private static final String DOWNLOADED = "downloaded";
     private static final String CUSTOM_TILES = "custom_tiles";
     private static final String RECIPES = "recipes";
-    private static final String BLOCKED_RECIPES = "blocked_recipes";
+    private static final String BLOCKED_RECIPES = "blocked_recipe_classes";
     private static final String BLOCKED_RECIPE_RESULTS = "blocked_recipe_results";
     private static final String PARTICLES = "particles";
     private static final String DUNGEON_SCRIPT_PATH = "dungeon_script_path";
@@ -601,6 +621,7 @@ public class CustomDungeon implements Bundlable {
     @Override
     public void storeInBundle(Bundle bundle) {
         bundle.put(NAME, name);
+        bundle.put(CORE_ID, coreID);
         bundle.put(LAST_EDITED_FLOOR, lastEditedFloor);
         if (startFloor != null) bundle.put(START_FLOOR, startFloor);
         bundle.put(RAT_KING_LEVELS, ratKingLevels.toArray(EMPTY_STRING_ARRAY));
@@ -620,14 +641,7 @@ public class CustomDungeon implements Bundlable {
 
         bundle.put(FOUND_PAGES, foundPages);
 
-        int[] intArray = new int[blockedRecipes.size()];
-        int index = 0;
-        for (int i : blockedRecipes) {
-            intArray[index] = i;
-            index++;
-        }
-        bundle.put(BLOCKED_RECIPES, intArray);
-
+        bundle.put(BLOCKED_RECIPES, blockedRecipes.toArray(EditorUtilities.EMPTY_CLASS_ARRAY));
         bundle.put(BLOCKED_RECIPE_RESULTS, blockedRecipeResults.toArray(EditorUtilities.EMPTY_CLASS_ARRAY));
 
         bundle.put(PARTICLES, particles.values());
@@ -721,6 +735,7 @@ public class CustomDungeon implements Bundlable {
     @Override
     public void restoreFromBundle(Bundle bundle) {
         name = bundle.getString(NAME);
+        coreID = bundle.getString(CORE_ID);
         lastEditedFloor = bundle.getString(LAST_EDITED_FLOOR);
         if (bundle.contains(START_FLOOR)) startFloor = bundle.getString(START_FLOOR);
         ratKingLevels = new HashSet<>(Arrays.asList(bundle.getStringArray(RAT_KING_LEVELS)));
@@ -789,12 +804,19 @@ public class CustomDungeon implements Bundlable {
                 recipes.add((CustomRecipe) b);
             }
         }
-        blockedRecipes = new HashSet<>(5);
-        int[] intArray = bundle.getIntArray(BLOCKED_RECIPES);
-        if (intArray != null) {
-            for (int i : intArray)
-                blockedRecipes.add(i);
+        blockedRecipes = new HashSet<>();
+        if (bundle.contains("blocked_recipes")) {
+            int[] intArray = bundle.getIntArray("blocked_recipes");
+            if (intArray != null) {
+                for (int i : intArray)
+                    blockedRecipes.add(WndDisableRecipes.indexToRecipe(i));
+            }
+        } else {
+            for (Class<?> c : bundle.getClassArray(BLOCKED_RECIPES))
+                blockedRecipes.add((Class<? extends Recipe>) c);
         }
+        
+        
         blockedRecipeResults = new HashSet<>(5);
         if (bundle.contains(BLOCKED_RECIPE_RESULTS))
             Collections.addAll(blockedRecipeResults, (Class<? extends Item>[]) bundle.getClassArray(BLOCKED_RECIPE_RESULTS));
@@ -889,7 +911,7 @@ public class CustomDungeon implements Bundlable {
     }
 
     public CustomDungeonSaves.Info createInfo() {
-        return new CustomDungeonSaves.Info(getName(), Game.versionCode, getNumFloors(), 0/*hashCode()*/, downloaded);
+        return new CustomDungeonSaves.Info(getName(), coreID, Game.versionCode, getNumFloors(), 0/*hashCode()*/, downloaded);
     }
 
     void addRatKingLevel(String name) {
@@ -948,11 +970,9 @@ public class CustomDungeon implements Bundlable {
             else level = (CustomLevel) levelScheme.getLevel();
             if (level == null) return;//skip if level couldn't be loaded
 
-            boolean saveNeeded = false;
-
-            if (extraTasksCL != null && extraTasksCL.apply(level)) saveNeeded = true;
-
-            if (GameObject.doOnAllGameObjectsSparseArray(level.heaps, whatToDo)) saveNeeded = true;
+            boolean saveNeeded = extraTasksCL != null && extraTasksCL.apply(level);
+			
+			if (GameObject.doOnAllGameObjectsSparseArray(level.heaps, whatToDo)) saveNeeded = true;
             for (Heap h : level.heaps.valueList()) {
                 if (h.isEmpty()) {
                     level.heaps.remove(h.pos);
@@ -992,8 +1012,8 @@ public class CustomDungeon implements Bundlable {
                 else level.blobs.put(SacrificialFire.class, newValue);
             })) saveNeeded = true;
 
-			if (GameObject.doOnAllGameObjectsSet(level.customTiles, whatToDo)) saveNeeded = true;
-			if (GameObject.doOnAllGameObjectsSet(level.customWalls, whatToDo)) saveNeeded = true;
+			if (GameObject.doOnAllGameObjectsList(level.customTiles, whatToDo)) saveNeeded = true;
+			if (GameObject.doOnAllGameObjectsList(level.customWalls, whatToDo)) saveNeeded = true;
 
             if (load) {
                 if (saveNeeded) CustomDungeonSaves.saveLevel(level);
@@ -1008,8 +1028,9 @@ public class CustomDungeon implements Bundlable {
         }
 
     }
-
-
+    
+    
+    @NotAllowedInLua
     public void delete(LevelScheme levelScheme) throws IOException {
 
         if (!LuaManager.checkAccess("customDungeon.delete")) return;
@@ -1116,7 +1137,8 @@ public class CustomDungeon implements Bundlable {
         CustomDungeonSaves.deleteLevelFile(n);
         CustomDungeonSaves.saveDungeon(this);
     }
-
+    
+    @NotAllowedInLua
     public void renameZone(Zone zone, String newName) {
 
         if (!LuaManager.checkAccess("renameZone")) return;
@@ -1169,7 +1191,8 @@ public class CustomDungeon implements Bundlable {
             SandboxPixelDungeon.reportException(e);
         }
     }
-
+    
+    @NotAllowedInLua
     public void deleteZone(Zone zone) throws IOException {
 
         if (!LuaManager.checkAccess("deleteZone")) return;
@@ -1251,6 +1274,7 @@ public class CustomDungeon implements Bundlable {
         }
     }
 
+    @NotAllowedInLua
     public LevelScheme copyLevel(LevelScheme levelScheme, String newName) {
 
         if (!LuaManager.checkAccess("copyLevel")) return null;
@@ -1332,7 +1356,14 @@ public class CustomDungeon implements Bundlable {
             throw new RuntimeException(e);
         }
     }
-
+    
+    @NotAllowedInLua
+    public void doQuickNameChangeAfterDownload(String newName) {
+        if (!LuaManager.checkAccess("quickNameChangeAfterDownload")) return;
+        this.name = newName;
+    }
+    
+    @NotAllowedInLua
     public void renameLevel(LevelScheme levelScheme, String newName) {
 
         if (!LuaManager.checkAccess("renameLevel")) return;

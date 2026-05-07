@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ public class Bleeding extends BuffWithDuration {
 		if (target.isAlive()) {
 			
 			if (!permanent) left = Random.NormalFloat(left / 2f, left);
+			else left = Math.max(1, left);
 			int dmg = Math.round(left);
 			
 			if (dmg > 0) {

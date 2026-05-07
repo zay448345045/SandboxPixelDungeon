@@ -41,6 +41,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomTileLoader;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
+import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.features.LevelTransition;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.RoomLayoutLevel;
@@ -55,11 +56,12 @@ import com.shatteredpixel.shatteredpixeldungeon.tiles.CustomTilemap;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.DungeonTerrainTilemap;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.DungeonTilemap;
 import com.shatteredpixel.shatteredpixeldungeon.ui.QuickSlotButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.RenderedTextBlock;
+import com.shatteredpixel.shatteredpixeldungeon.ui.StatusPane;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndBag;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
 import com.watabou.NotAllowedInLua;
-import com.watabou.noosa.BitmapText;
 import com.watabou.noosa.Camera;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.Gizmo;
@@ -68,7 +70,9 @@ import com.watabou.noosa.ui.Component;
 import com.watabou.utils.FileUtils;
 import com.watabou.utils.GameMath;
 import com.watabou.utils.PathFinder;
+import com.watabou.utils.PlatformSupport;
 import com.watabou.utils.PointF;
+import com.watabou.utils.RectF;
 import com.watabou.utils.Reflection;
 
 import java.io.IOException;
@@ -95,7 +99,6 @@ public class EditorScene extends DungeonScene {
     private static CustomLevel customLevel;
 
 
-    protected MenuPane menu;
     private UndoPane undo;
     private EToolbar toolbar;
 
@@ -105,10 +108,12 @@ public class EditorScene extends DungeonScene {
 
 
     private Group transitionIndicators;
-    private Map<LevelTransition, BitmapText> transitionIndicatorsMap;
+    private Map<LevelTransition, RenderedTextBlock> transitionIndicatorsMap;
     private Group realMobs;
 
     private static boolean displayZones = false;
+    
+    private static boolean eraserMode = false;
 
 
     public static void start() {
@@ -116,6 +121,7 @@ public class EditorScene extends DungeonScene {
         QuickSlotButton.reset();
         BlacksmithQuest.reset();
         Statistics.reset();
+        Notes.reset();
         Dungeon.hero = null;
         Dungeon.branch = 0;
         Dungeon.reachedCheckpoint = null;
@@ -130,12 +136,14 @@ public class EditorScene extends DungeonScene {
     private static PointF mainCameraPos;
 
     public static void open(CustomLevel customLevel) {
+        Dungeon.levelName = null;
         if (customLevel == null) {
             SandboxPixelDungeon.switchNoFade(FloorOverviewScene.class);
             return;
         }
         isEditing = true;
         displayZones = false;
+        eraserMode = false;
         isEditingRoomLayout = customLevel instanceof RoomLayoutLevel;
         if (isEditingRoomLayout && !(EditorScene.customLevel instanceof RoomLayoutLevel)) {
             customLevelBeforeRoomLayout = EditorScene.customLevel.levelScheme;
@@ -170,7 +178,7 @@ public class EditorScene extends DungeonScene {
     public static void close() {
         if (customLevel != null) {
             EditorScene.customLevel.levelScheme.unloadLevel();
-            customLevel = null;
+            Dungeon.level = customLevel = null;
         }
         isEditing = false;
     }
@@ -286,28 +294,31 @@ public class EditorScene extends DungeonScene {
         add(cellSelector = new EditorCellSelector(tiles));
 
         int uiSize = SPDSettings.interfaceSize();
+        
+        RectF allInsets = Game.platform.getSafeInsets( PlatformSupport.INSET_ALL );
+        allInsets = allInsets.scale(1f / uiCamera.zoom);
 
-        menu = new MenuPane();
+        menu = new EditorMenuPane();
         menu.camera = uiCamera;
-        menu.setPos(uiCamera.width - MenuPane.WIDTH, uiSize > 0 ? 0 : 0);
+        menu.setPos( menuBarMaxLeft, screentop);
         add(menu);
 
         undo = new UndoPane();
         undo.camera = uiCamera;
-        undo.setPos(0, 0);
+        undo.setPos(insets.left, uiSize > 0 && StatusPane.hpBarMaxWidth >= UndoPane.WIDTH ? screentop + 1 : screentop + 1);
         add(undo);
 
         sideControlPane = new SideControlPane(true);
         sideControlPane.camera = uiCamera;
-        sideControlPane.setPos(0, undo.bottom() + (PixelScene.landscape() ? 5 : 10));
+        sideControlPane.setPos(allInsets.left, undo.bottom() + (PixelScene.landscape() ? 5 : 10));
         add(sideControlPane);
 
         toolbar = new EToolbar();
         toolbar.camera = uiCamera;
         add(toolbar);
-
-        toolbar.setRect(0, uiCamera.height - toolbar.height(), uiCamera.width, toolbar.height());
-
+        
+        toolbar.setRect( insets.left, uiCamera.height - toolbar.height() - insets.bottom, uiCamera.width - insets.right, toolbar.height() );
+        
 
         fadeIn();
 
@@ -366,7 +377,18 @@ public class EditorScene extends DungeonScene {
     public static boolean isDisplayZones() {
         return displayZones;
     }
-
+    
+    public static void setEraserMode(boolean flag) {
+        EditorScene.eraserMode = flag;
+        if (scene != null && scene.sideControlPane != null) {
+            scene.sideControlPane.setButtonEnabled(SideControlPane.EraserModeBtn.class, flag);
+        }
+    }
+    
+    public static boolean isEraserMode() {
+        return eraserMode;
+    }
+    
     @Override
     public void update() {
         super.update();
@@ -473,7 +495,7 @@ public class EditorScene extends DungeonScene {
             customBossWallsTilemap = (CustomTilemap.BossLevelVisuals) visual;
     }
 
-    private static CustomTilemap.BossLevelVisuals customBossTilemap, customBossWallsTilemap;
+    private static CustomTilemap.BossLevelVisuals customBossTilemap = null, customBossWallsTilemap = null;
     public static void revalidateBossCustomTiles() {
         if (scene == null || Dungeon.level == null) return;
 
@@ -490,13 +512,13 @@ public class EditorScene extends DungeonScene {
         if (visual instanceof CustomTileLoader.SimpleCustomTile) {
             int pos = visual.tileX + visual.tileY * customLevel.width();
             customLevel.visualMap[pos] = customLevel.map[pos];
-            customLevel.visualRegions[pos] = 0;
+            customLevel.visualRegions[pos] = LevelScheme.REGION_NONE;
         }
     }
 
     private void addTransitionSprite(LevelTransition transition) {
         if (transitionIndicatorsMap.containsKey(transition)) return;
-        BitmapText text = new BitmapText(PixelScene.pixelFont);
+        RenderedTextBlock text = PixelScene.renderTextBlock(12);
         transitionIndicators.add(text);
         transitionIndicatorsMap.put(transition, text);
         updateTransitionIndicator(transition);
@@ -504,7 +526,7 @@ public class EditorScene extends DungeonScene {
 
     public static void remove(LevelTransition transition) {
         if (scene == null || transition == null) return;
-        BitmapText text = scene.transitionIndicatorsMap.get(transition);
+        RenderedTextBlock text = scene.transitionIndicatorsMap.get(transition);
         if (text == null) {
             for (LevelTransition trans : scene.transitionIndicatorsMap.keySet()) {
                 if (trans.departCell == transition.departCell && trans.destCell == transition.destCell
@@ -525,22 +547,40 @@ public class EditorScene extends DungeonScene {
 		if (scene == null) return;
 		scene.addTransitionSprite(transition);
 	}
+    
+    private static final float TRANSITION_INDICATOR_SCALE = 0.28f;
 
 	public static void updateTransitionIndicator(LevelTransition transition) {
         if (scene == null || transition == null) return;
-        BitmapText text = scene.transitionIndicatorsMap.get(transition);
+        RenderedTextBlock text = scene.transitionIndicatorsMap.get(transition);
         if (text == null) return;
-        text.text(Messages.get(LevelTransition.class, "to") + ": "
-                + (transition.destLevel == null && transition.destBranch == 0 ? "" : EditorUtilities.getDispayName(transition)));
-        text.hardlight(Window.TITLE_COLOR);
-        text.scale.set(0.55f);
-        text.measure();
-
-        PointF pos = new PointF(
-                PixelScene.align(Camera.main, ((transition.cell() % Dungeon.level.width()) + 0.5f) * DungeonTilemap.SIZE - text.width() * 0.5f),
-                PixelScene.align(Camera.main, ((transition.cell() / Dungeon.level.width()) + 1.0f) * DungeonTilemap.SIZE - text.height() - DungeonTilemap.SIZE * 5 / 16f));
-        text.point(pos);
-        text.y += 5.5f;
+//        if (text instanceof BitmapText) {
+//            BitmapText bitmapText = (BitmapText) text;
+//            bitmapText.text(Messages.get(LevelTransition.class, "to") + ": "
+//                    + (transition.destLevel == null && transition.destBranch == 0 ? "" : EditorUtilities.getDispayName(transition)));
+//            bitmapText.hardlight(Window.TITLE_COLOR);
+//            bitmapText.scale.set(0.55f);
+//            bitmapText.measure();
+//
+//            PointF pos = new PointF(
+//                    PixelScene.align(Camera.main, ((transition.cell() % Dungeon.level.width()) + 0.5f) * DungeonTilemap.SIZE - bitmapText.width() * 0.5f),
+//                    PixelScene.align(Camera.main, ((transition.cell() / Dungeon.level.width()) + 1.0f) * DungeonTilemap.SIZE - bitmapText.height() - DungeonTilemap.SIZE * 5 / 16f));
+//            bitmapText.point(pos);
+//            bitmapText.y += 5.5f;
+//        } else {
+            RenderedTextBlock textBlock = text;
+            textBlock.setScale(TRANSITION_INDICATOR_SCALE);
+            textBlock.text(Messages.get(LevelTransition.class, "to") + ": "
+                    + (transition.destLevel == null && transition.destBranch == 0 ? "" : EditorUtilities.getDispayName(transition)));
+            textBlock.hardlight(Window.TITLE_COLOR);
+            
+            PointF pos = new PointF(
+                    PixelScene.align(Camera.main, ((transition.cell() % Dungeon.level.width()) + 0.5f) * DungeonTilemap.SIZE - textBlock.width() * 0.5f),
+                    PixelScene.align(Camera.main, ((transition.cell() / Dungeon.level.width()) + 1.0f) * DungeonTilemap.SIZE - textBlock.height() - DungeonTilemap.SIZE * 5 / 16f));
+            textBlock.setPos(pos.x, pos.y + 5.5f);
+//        }
+        
+        
     }
 
     public static void updateTransitionIndicators() {
@@ -700,9 +740,15 @@ public class EditorScene extends DungeonScene {
         public void onSelect(Integer cell) {
             if (cell == null) return;
 
-            Item selected = EToolbar.getSelectedItem();
-
-            if (selected instanceof EditorItem) ((EditorItem<?>) selected).place(cell);
+            if (isEraserMode()) {
+                EditorItem.REMOVER_ITEM.place(cell);
+            }
+            else {
+                Item selected = EToolbar.getSelectedItem();
+                if (selected instanceof EditorItem) {
+                    ((EditorItem<?>) selected).place(cell);
+                }
+            }
         }
 
         @Override
@@ -801,7 +847,7 @@ public class EditorScene extends DungeonScene {
 
     public static void fillAllWithOneTerrain(Integer cell) {
         if (cell != null && cell >= 0 && cell < Dungeon.level.length()) {
-            Item selected = EToolbar.getSelectedItem();
+            Item selected = isEraserMode() ? EditorItem.REMOVER_ITEM : EToolbar.getSelectedItem();
 
             if (selected instanceof EditorItem) {
 
@@ -839,8 +885,8 @@ public class EditorScene extends DungeonScene {
         }
     }
 
-    private static Set<Integer> changedCells = new HashSet<>();
-    private static Set<Integer> queue = new HashSet<>();//avoid StackOverflowError
+    private static final Set<Integer> changedCells = new HashSet<>();
+    private static final Set<Integer> queue = new HashSet<>();//avoid StackOverflowError
 
     public static void fillAllWithOneTerrainQueue(int cell, int terrainClick, int[] map, int lvlWidth) {
 

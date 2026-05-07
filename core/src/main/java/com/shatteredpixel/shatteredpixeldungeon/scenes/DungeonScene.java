@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 package com.shatteredpixel.shatteredpixeldungeon.scenes;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.SPDSettings;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Blob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
@@ -60,10 +61,12 @@ import com.shatteredpixel.shatteredpixeldungeon.tiles.GridTileMap;
 import com.shatteredpixel.shatteredpixeldungeon.tiles.TerrainFeaturesTilemap;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Banner;
 import com.shatteredpixel.shatteredpixeldungeon.ui.InventoryPane;
+import com.shatteredpixel.shatteredpixeldungeon.ui.MenuPane;
+import com.shatteredpixel.shatteredpixeldungeon.ui.StatusPane;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Toast;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndTabbed;
-import com.watabou.NotAllowedInLua;
+import com.watabou.gltextures.TextureCache;
 import com.watabou.glwrap.Blending;
 import com.watabou.input.PointerEvent;
 import com.watabou.noosa.Camera;
@@ -78,7 +81,9 @@ import com.watabou.noosa.Visual;
 import com.watabou.noosa.particles.Emitter;
 import com.watabou.noosa.ui.Component;
 import com.watabou.utils.PathFinder;
+import com.watabou.utils.PlatformSupport;
 import com.watabou.utils.Point;
+import com.watabou.utils.RectF;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -86,7 +91,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@NotAllowedInLua
 public abstract class DungeonScene extends PixelScene {
 
 	private static DungeonScene scene;
@@ -97,6 +101,8 @@ public abstract class DungeonScene extends PixelScene {
 	protected BarrierTilemap barriers;
 	protected ArrowCellTilemap arrowCells;
 	protected Group checkpoints;
+	
+	protected MenuPane menu;
 
 	protected Group terrain;
 	protected Group customTiles;
@@ -124,8 +130,11 @@ public abstract class DungeonScene extends PixelScene {
 	protected Component prompt;
 
 	protected InventoryPane inventory;
-
-
+	
+	protected RectF insets;
+	protected float largeInsetTop, screentop, menuBarMaxLeft;
+	
+	
 	//sometimes UI changes can be prompted by the actor thread.
 	// We queue any removed element destruction, rather than destroying them in the actor thread.
 	protected ArrayList<Gizmo> toDestroy = new ArrayList<>();
@@ -137,6 +146,10 @@ public abstract class DungeonScene extends PixelScene {
 	}
 
 	protected void initBasics() {
+		
+		insets = getCommonInsets();
+		//we want to check if large is the same as blocking here
+		largeInsetTop = Game.platform.getSafeInsets(PlatformSupport.INSET_LRG).scale(1f/defaultZoom).top;
 
 		terrain = new Group();
 		add(terrain);
@@ -194,6 +207,113 @@ public abstract class DungeonScene extends PixelScene {
 
 		checkpoints = new Group();
 		terrain.add(checkpoints);
+		
+		
+		
+		int uiSize = SPDSettings.interfaceSize();
+		
+		//WARNING: make sure menuBarMaxLeft and screentop are NO LOCAL VARIABLES!
+		
+		//display cutouts can obstruct various UI elements, so we need to adjust for that sometimes
+		float heroPaneExtraWidth = insets.left;
+		menuBarMaxLeft = uiCamera.width-insets.right-MenuPane.WIDTH;
+		int hpBarMaxWidth = 50; //default max width
+		float[] buffBarRowLimits = new float[9];
+		float[] buffBarRowAdjusts = new float[9];
+		
+		if (largeInsetTop == 0 && insets.top > 0){
+			//smaller non-notch cutouts are of varying size and may obstruct various UI elements
+			// some are small hole punches, some are huge dynamic islands
+			RectF cutout = Game.platform.getDisplayCutout().scale(1f / defaultZoom);
+			//if the cutout is positioned to obstruct the hero portrait in the status pane
+			if (cutout.top < 30
+					&& cutout.left < 20
+					&& cutout.right > 12) {
+				heroPaneExtraWidth = Math.max(heroPaneExtraWidth, cutout.right-12);
+				//make sure we have space to actually move it though
+				heroPaneExtraWidth = Math.min(heroPaneExtraWidth, uiCamera.width - PixelScene.MIN_WIDTH_P);
+			}
+			//if the cutout is positioned to obstruct the menu bar
+			else if (cutout.top < 20
+					&& cutout.left < menuBarMaxLeft + MenuPane.WIDTH
+					&& cutout.right > menuBarMaxLeft) {
+				menuBarMaxLeft = Math.min(menuBarMaxLeft, cutout.left - MenuPane.WIDTH);
+				//make sure we have space to actually move it though
+				menuBarMaxLeft = Math.max(menuBarMaxLeft, PixelScene.MIN_WIDTH_P-MenuPane.WIDTH);
+			}
+			//if the cutout is positioned to obstruct the HP bar
+			else if (cutout.left < 78
+					&& cutout.top < 4
+					&& cutout.right > 32) {
+				//subtract starting position, but add a bit back due to end of bar
+				hpBarMaxWidth = Math.round(cutout.left - 32 + 4);
+				hpBarMaxWidth = Math.max(hpBarMaxWidth, 21); //cannot go below 21 (30 effective)
+			}
+			//if the cutout is positioned to obstruct the buff bar
+			if (cutout.left < 84
+					&& cutout.top < 10
+					&& cutout.right > 32
+					&& cutout.bottom > 11) {
+				int i = 1;
+				int rowTop = 11;
+				//in most cases this just obstructs one row, but dynamic island can block more =S
+				while (cutout.bottom > rowTop){
+					if (i == 1 || cutout.bottom > rowTop+2 ) { //always shorten first row
+						//subtract starting position, add a bit back to allow slight overlap
+						buffBarRowLimits[i] = cutout.left - 32 + 3;
+					} else {
+						//if row is only slightly cut off, lower it instead of limiting width
+						buffBarRowAdjusts[i] = cutout.bottom - rowTop + 1;
+						rowTop += buffBarRowAdjusts[i];
+					}
+					i++;
+					rowTop += 8;
+				}
+			}
+		}
+		
+		screentop = largeInsetTop;
+		if (screentop == 0 && uiSize == 0){
+			screentop--; //on mobile UI, if we render in fullscreen, clip the top 1px;
+		}
+		
+		float extraRight = uiCamera.width - (menuBarMaxLeft + MenuPane.WIDTH);
+		if (extraRight > 0){
+			SkinnedBlock bar = new SkinnedBlock(extraRight, 20, TextureCache.createSolid(0x88000000));
+			bar.x = uiCamera.width - extraRight;
+			bar.camera = uiCamera;
+			add(bar);
+			
+			PointerArea blocker = new PointerArea(uiCamera.width - extraRight, 0, extraRight, 20);
+			blocker.camera = uiCamera;
+			add(blocker);
+		}
+		
+		if (uiSize < 2 && largeInsetTop != 0) {
+			SkinnedBlock bar = new SkinnedBlock(uiCamera.width, largeInsetTop, TextureCache.createSolid(0x88000000));
+			bar.camera = uiCamera;
+			add(bar);
+			
+			PointerArea blocker = new PointerArea(0, 0, uiCamera.width, largeInsetTop);
+			blocker.camera = uiCamera;
+			add(blocker);
+		}
+		
+		if (insets.bottom > 0){
+			SkinnedBlock bar = new SkinnedBlock(uiCamera.width, insets.bottom, TextureCache.createSolid(0x88000000));
+			bar.camera = uiCamera;
+			bar.y = uiCamera.height - insets.bottom;
+			add(bar);
+			
+			PointerArea blocker = new PointerArea(0, uiCamera.height - insets.bottom, uiCamera.width, insets.bottom);
+			blocker.camera = uiCamera;
+			add(blocker);
+		}
+		
+		StatusPane.heroPaneExtraWidth = heroPaneExtraWidth;
+		StatusPane.hpBarMaxWidth = hpBarMaxWidth;
+		StatusPane.buffBarRowMaxWidths = buffBarRowLimits;
+		StatusPane.buffBarRowAdjusts = buffBarRowAdjusts;
 	}
 
 	protected abstract void initAndAddDungeonTilemap();
@@ -438,14 +558,15 @@ public abstract class DungeonScene extends PixelScene {
 			if (cp.sprite != null) cp.sprite.updateSprite(cp);
 		}
 	}
-
+	
+	
 	protected void showBanner( Banner banner ) {
 		banner.camera = uiCamera;
-
+		
 		float offset = Camera.main.centerOffset.y;
 		banner.x = align( uiCamera, (uiCamera.width - banner.width) / 2 );
-		banner.y = align( uiCamera, (uiCamera.height - banner.height) / 2 - banner.height/2 - 16 - offset );
-
+		banner.y = align( uiCamera, (uiCamera.height - banner.height) / 2 - 32 - offset );
+		
 		addToFront( banner );
 	}
 

@@ -3,10 +3,10 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * Sandbox Pixel Dungeon
- * Copyright (C) 2023-2024 AlphaDraxonis
+ * Copyright (C) 2023-2025 AlphaDraxonis
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces;
 
+import com.shatteredpixel.shatteredpixeldungeon.GameObject;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.CustomObject;
@@ -38,6 +39,7 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.CharSprite;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndError;
+import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.Visual;
 import com.watabou.utils.Bundlable;
@@ -189,7 +191,7 @@ public final class LuaClassGenerator {
 				builder = defineMethodForCallingSuper(builder, method);
 
 			//override own method
-				builder = builder.method(ElementMatchers.named(method.getName()))
+				builder = builder.method(ElementMatchers.named(method.getName()).and(ElementMatchers.takesArguments(method.getParameterTypes())))
 						.intercept(MethodDelegation.to(methodInterceptor(originalClass)));
 
 		}
@@ -235,85 +237,79 @@ public final class LuaClassGenerator {
     //lua code cannot override these methods
     private static Collection<Method> methodsToIntercept(Class<?> originalClass) {
 		Map<String, Method> methods = new HashMap<>();
-
-        if (Char.class.isAssignableFrom(originalClass)) {
-
+		if (Char.class.isAssignableFrom(originalClass)) {
+			
 			findAllMethodsToOverride(originalClass, Actor.class, methods);
-
-			methods.remove("onRenameLevelScheme");
-			methods.remove("onDeleteLevelScheme");
-			methods.remove("setDurationForBuff");
-			methods.remove("moveBuffSilentlyToOtherChar_ACCESS_ONLY_FOR_HeroMob");
-			methods.remove("getPropertiesVar_ACCESS_ONLY_FOR_EDITING_UI");
-			methods.remove("spend_DO_NOT_CALL_UNLESS_ABSOLUTELY_NECESSARY");
-			methods.remove("setFirstAddedToTrue_ACCESS_ONLY_FOR_CUSTOMLEVELS_THAT_ARE_ENTERED_FOR_THE_FIRST_TIME");
-		}
-
-		else if (Level.class.isAssignableFrom(originalClass)) {
-
+			
+			methods.remove("setDurationForFlavourBuff");
+			
+		} else if (Level.class.isAssignableFrom(originalClass)) {
+			
 			findAllMethodsToOverride(originalClass, Level.class, methods);
-
-			methods.remove("setSize");
+			
 			methods.remove("width");
 			methods.remove("height");
+			methods.remove("adjacent");
+			methods.remove("distance");
+			methods.remove("trueDistance");
+			methods.remove("cellToPoint");
+			methods.remove("pointToCell");
 			methods.remove("tilesTex");
 			methods.remove("waterTex");
 			methods.remove("getTransition");
+			methods.remove("getTransition");
+			methods.remove("getTransitionFromSurface");
+			methods.remove("setLevelScheme");
 			methods.remove("addVisuals");
 			methods.remove("addWallVisuals");
+			methods.remove("cleanWalls");
+			methods.remove("cleanWallCell");
+			methods.remove("removeSimpleCustomTile");
 			methods.remove("findMob");
 			methods.remove("addRespawner");
-			methods.remove("addZoneRespawner");
 			methods.remove("buildFlagMaps");
+			
 			methods.remove("isPassable");
+			methods.remove("isPassableAlly");
 			methods.remove("isPassableHero");
 			methods.remove("isPassableMob");
-			methods.remove("isPassableAlly");
 			methods.remove("getPassableVar");
 			methods.remove("getPassableHeroVar");
 			methods.remove("getPassableMobVar");
-			methods.remove("getPassableAllyVar");
-			methods.remove("getPassableAndAnyVarForBoth");
 			methods.remove("getPassableAndAvoidVar");
-			methods.remove("removeSimpleCustomTile");
-			methods.remove("cleanWalls");
-			methods.remove("cleanWallCell");
-			methods.remove("distance");
-			methods.remove("adjacent");
-			methods.remove("trueDistance");
-			methods.remove("insideMap");
-			methods.remove("cellToPoint");
-			methods.remove("pointToCell");
-			methods.remove("appendNoTransWarning");
-			methods.remove("setLevelScheme");
-
+			methods.remove("getPassableAndAvoidVarForBoth");
+			
 			// CustomLevel
 			methods.remove("updateTransitionCells");
-		}
-		else if (CharSprite.class.isAssignableFrom(originalClass)) {
-
+			
+		} else if (CharSprite.class.isAssignableFrom(originalClass)) {
+			
 			findAllMethodsToOverride(originalClass, Visual.class, methods);
-
+			
 			methods.remove("texture");
-		}
-		else {
+		} else {
 			//null means all classes except Object.class
 			findAllMethodsToOverride(originalClass, null, methods);
 		}
-
+		
 		methods.remove("storeInBundle");
 		methods.remove("restoreFromBundle");
 		
-		methods.remove("getCopy");
-		methods.remove("initAsInventoryItem");
-
 		//will be force-added later
 		methods.remove("name");
-
+		
 		//interface NameCustomizable
 		methods.remove("getCustomName");
 		methods.remove("setCustomName");
-
+		
+		if (GameObject.class.isAssignableFrom(originalClass)) {
+			methods.remove("onRenameLevelScheme");
+			methods.remove("onDeleteLevelScheme");
+			methods.remove("initAsInventoryItem");
+		}
+		
+		methods.remove("getCopy");
+		
 		return methods.values();
     }
 
@@ -382,13 +378,26 @@ public final class LuaClassGenerator {
 		}
 		self.setIdentifier(bundle.getInt("identifier"));
 		
-		LuaValue script;
-		if (!CustomDungeon.isEditing() && (script = CustomObjectManager.getScript(self.getIdentifier())) != null && script.get("vars").istable()) {
-			self.setVars( LuaManager.deepCopyLuaValue(script.get("vars")).checktable() );
+		if (!CustomDungeon.isEditing()) {
+			fetchVarsFromScript(self, bundle);
+		}
+	}
+	
+	public static void fetchVarsFromScript(LuaCustomObjectClass self, Bundle bundle) {
+		LuaValue script = CustomObjectManager.getScript(self.getIdentifier());
+		if (script != null) {
+			if (script.get("vars").isnil()) script.set("vars", new LuaTable());
+			if (script.get("static").isnil()) script.set("static", new LuaTable());
 			
-			LuaValue loaded = LuaManager.restoreVarFromBundle(bundle, LuaCustomObjectClass.VARS);
-			if (loaded != null && loaded.istable()) self.setVars( loaded.checktable() );
-			if (script.get("static").istable()) self.getVars().set("static", script.get("static"));
+			if (script.get("vars").istable()) {
+				self.setVars( LuaManager.deepCopyLuaValue(script.get("vars")).checktable() );
+				
+				if (bundle != null) {
+					LuaValue loaded = LuaManager.restoreVarFromBundle(bundle, LuaCustomObjectClass.VARS);
+					if (loaded != null && loaded.istable()) self.setVars( loaded.checktable() );
+				}
+				if (script.get("static").istable()) self.getVars().set("static", script.get("static"));
+			}
 		}
 	}
 
@@ -415,7 +424,10 @@ public final class LuaClassGenerator {
 				try {
 					return LuaRestrictionProxy.coerceLuaToJava( script.get(method.getName()).invoke(convertArgsToLua(self, self.getVars(), args)).arg1(), method.getReturnType() );
 				} catch (LuaError error) {
-					Game.runOnRenderThread(() -> DungeonScene.show(new WndError(error)));
+					Game.runOnRenderThread(() -> {
+						WndError wnd = WndError.WndErrorLua.create(error);
+						if (wnd != null) DungeonScene.show(wnd);
+					});
 				}
 			}
 			return originalMethod.call();
@@ -466,7 +478,10 @@ public final class LuaClassGenerator {
 				try {
 					return LuaRestrictionProxy.coerceLuaToJava( script.get(method.getName()).invoke(MethodInterceptor.convertArgsToLua(self, self.getVars(), args)).arg1(), method.getReturnType() );
 				} catch (LuaError error) {
-					Game.runOnRenderThread(() -> DungeonScene.show(new WndError(error)));
+					Game.runOnRenderThread(() -> {
+						WndError wnd = WndError.WndErrorLua.create(error);
+						if (wnd != null) DungeonScene.show(wnd);
+					});
 				}
 			}
 			
@@ -484,12 +499,14 @@ public final class LuaClassGenerator {
     private static void findAllMethodsToOverride(Class<?> currentClass, Class<?> highestClass, Map<String, Method> currentMethods) {
         for (Method m : currentClass.getDeclaredMethods()) {
             int mods = m.getModifiers();
-            if (Modifier.isPrivate(mods) || Modifier.isFinal(mods) || Modifier.isStatic(mods)) {
+            if (Modifier.isPrivate(mods) || Modifier.isFinal(mods) || Modifier.isStatic(mods) || m.isAnnotationPresent(NotAllowedInLua.class)) {
                 //don't override these
                 continue;
             }
-            if (!currentMethods.containsKey(m.getName()))
-                currentMethods.put(m.getName(), m);
+			String identifier = m.getName();
+			Method currentMethod = currentMethods.get(identifier);
+            if (currentMethod == null || currentMethod.getParameterTypes().length < m.getParameterTypes().length)
+                currentMethods.put(identifier, m);
         }
         if (currentClass != highestClass) {
 			Class<?> superClass = currentClass.getSuperclass();

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,12 +125,14 @@ public class QuickRecipe extends Component {
 					if (sim.getClass() != in.getClass() || sim.isIdentified())
 						quantity += sim.quantity();
 				}
-			}
-			
-			if (quantity < in.quantity()) {
-				curr.sprite.alpha(0.3f);
+				if (quantity < in.quantity()) {
+					curr.sprite.alpha(0.3f);
+					hasInputs = false;
+				}
+			} else {
 				hasInputs = false;
 			}
+
 			curr.showExtraInfo(false);
 			add(curr);
 			this.inputs.add(curr);
@@ -160,7 +162,7 @@ public class QuickRecipe extends Component {
 				SandboxPixelDungeon.scene().addToFront(new WndInfoItem(output));
 			}
 		};
-		if (!hasInputs){
+		if (Dungeon.hero != null && !hasInputs){
 			this.output.sprite.alpha(0.3f);
 		}
 		this.output.showExtraInfo(false);
@@ -344,14 +346,6 @@ public class QuickRecipe extends Component {
 				result.add(new QuickRecipe( new LiquidMetal.Recipe(),
 						new ArrayList<Item>(Arrays.asList(new MissileWeapon.PlaceHolder())),
 						new LiquidMetal()));
-				result.add(new QuickRecipe( new LiquidMetal.Recipe(),
-						new ArrayList<Item>(Arrays.asList(new MissileWeapon.PlaceHolder().quantity(2))),
-						new LiquidMetal()));
-				result.add(new QuickRecipe( new LiquidMetal.Recipe(),
-						new ArrayList<Item>(Arrays.asList(new MissileWeapon.PlaceHolder().quantity(3))),
-						new LiquidMetal()));
-				result.add(null);
-				result.add(null);
 				result.add(new QuickRecipe( new ArcaneResin.Recipe(),
 						new ArrayList<Item>(Arrays.asList(new Wand.PlaceHolder())),
 						new ArcaneResin()));

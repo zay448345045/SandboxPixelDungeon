@@ -8,6 +8,8 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.EditorScene;
 import com.shatteredpixel.shatteredpixeldungeon.editor.OpenDungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.server.UploadDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.editor.server.UploadedDungeonRegistry;
+import com.shatteredpixel.shatteredpixeldungeon.editor.ui.StyledButtonWithIconAndText;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.DungeonToJsonConverter;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
@@ -74,19 +76,21 @@ public class WndSelectDungeon extends Window {
 
     private SortMode sortMode = SortMode.LAST_MODIFIED;
 
-    private List<CustomDungeonSaves.Info> allInfos;
-    private CustomDungeonSaves.Info featuredInfo;
+    private final List<CustomDungeonSaves.Info> allInfos;
+    private final CustomDungeonSaves.Info featuredInfo;
     private final String featuredLabel;
-    private Set<String> dungeonNames;
+    private final boolean contextWindowAvailable;
+    private final Set<String> dungeonNames;
 
-    public WndSelectDungeon(List<CustomDungeonSaves.Info> allInfos, boolean showAddButton) {
-        this(allInfos, showAddButton, null, null);
+    public WndSelectDungeon(List<CustomDungeonSaves.Info> allInfos, boolean showAddButton, boolean contextWindowAvailable) {
+        this(allInfos, showAddButton, null, null, contextWindowAvailable);
     }
 
-    public WndSelectDungeon(List<CustomDungeonSaves.Info> allInfos, boolean showAddButton, CustomDungeonSaves.Info featuredInfo, String featuredLabel) {
+    public WndSelectDungeon(List<CustomDungeonSaves.Info> allInfos, boolean showAddButton, CustomDungeonSaves.Info featuredInfo, String featuredLabel, boolean contextWindowAvailable) {
         this.allInfos = allInfos;
         this.featuredInfo = featuredInfo;
         this.featuredLabel = featuredLabel;
+        this.contextWindowAvailable = contextWindowAvailable;
 
         resize(WindowSize.WIDTH_LARGE.get(), WindowSize.HEIGHT_SMALL.get());
 
@@ -211,9 +215,9 @@ public class WndSelectDungeon extends Window {
         if (sort != null) sort.givePointerPriority();
     }
 
-    protected void select(String customDungeonName) {
+    protected void select(CustomDungeonSaves.Info dungeonInfo) {
         EditorScene.openDifferentLevel = true;
-        OpenDungeonScene.openDungeon(customDungeonName, OpenDungeonScene.Mode.EDITOR_LOAD);
+        OpenDungeonScene.openDungeon(dungeonInfo.name, OpenDungeonScene.Mode.EDITOR_LOAD);
     }
 
 
@@ -331,13 +335,21 @@ public class WndSelectDungeon extends Window {
 
         @Override
         protected boolean onLongClick() {
-            EditorScene.show(new WndInfoDungeon(info));
-            return true;
+            if (contextWindowAvailable) {
+                EditorScene.show(new WndInfoDungeon(info));
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        protected void onRightClick() {
+            onLongClick();
         }
 
         @Override
         protected void onClick() {
-            select(info.name);
+            select(info);
         }
 
         @NotAllowedInLua
@@ -349,24 +361,25 @@ public class WndSelectDungeon extends Window {
 
                 resize(WindowSize.WIDTH_LARGE.get(), 100);
 
-                RenderedTextBlock title = PixelScene.renderTextBlock(info.name, 10);
+                RenderedTextBlock title = PixelScene.renderTextBlock(info.name, 12);
                 title.hardlight(Window.TITLE_COLOR);
                 add(title);
+                
+                Component content = new Component();
+                add(content);
 
-                RedButton cont = new RedButton(Messages.get(WndGameInProgress.class, "continue")) {
+                RedButton open = new RedButton(Messages.get(WndGameInProgress.class, "continue")) {
                     @Override
                     protected void onClick() {
                         hide();
-                        select(info.name);
+                        select(info);
                     }
                 };
-                add(cont);
+                add(open);
 
                 RedButton erase = new RedButton(Messages.get(WndGameInProgress.class, "erase")) {
                     @Override
                     protected void onClick() {
-                        super.onClick();
-
                         SandboxPixelDungeon.scene().add(new WndOptions(Icons.get(Icons.WARNING),
                                 Messages.get(WndSelectDungeon.class, "erase_title"),
                                 Messages.get(WndSelectDungeon.class, "erase_body"),
@@ -384,14 +397,24 @@ public class WndSelectDungeon extends Window {
                         });
                     }
                 };
+                add(erase);
+                
+                StyledButtonWithIconAndText upload = new StyledButtonWithIconAndText(Chrome.Type.GREY_BUTTON_TR, Messages.get(WndSelectDungeon.class, "upload_label")) {
+                    @Override
+                    protected void onClick() {
+                        UploadDungeon.showUploadWindow(
+                                UploadedDungeonRegistry.hasDungeonBeenUploaded(info.coreID) ? ServerCommunication.UploadType.CHANGE : ServerCommunication.UploadType.UPLOAD,
+                                info.name, info.coreID);
+                    }
+                };
 
-                RedButton exportJson = new RedButton(Messages.get(WndSelectDungeon.class, "export_json_label")) {
+                StyledButton exportJson = new StyledButton(Chrome.Type.GREY_BUTTON_TR, Messages.get(WndSelectDungeon.class, "export_json_label"), 8) {
                     @Override
                     protected void onClick() {
                         String exportedName = info.name.replace('_', '-');
                         String fileName = "exports/" + info.name + ".json";
                         String destLocation = CustomDungeonSaves.getAbsolutePath(fileName).replace('_', '-');
-                        Window w = new WndOptions(
+                        EditorScene.show(new WndOptions(
                                 Messages.get(WndSelectDungeon.class, "export_json_title", exportedName),
                                 Messages.get(WndSelectDungeon.class, "export_json_body", destLocation),
                                 Messages.get(WndSelectDungeon.class, "export_yes"), Messages.get(WndSelectDungeon.class, "export_no")) {
@@ -420,28 +443,42 @@ public class WndSelectDungeon extends Window {
                                     }
                                 }
                             }
-                        };
-                        EditorScene.show(w);
+                        });
+                    }
+                    
+                    @Override
+                    protected void layout() {
+                        height = Math.max(getMinimumHeight(width()), Math.max(height(), upload.height()*3/4));
+                        super.layout();
                     }
                 };
                 exportJson.enable(info.numLevels > 0);
+                exportJson.multiline = true;
+                exportJson.leftJustify = false;
+                content.add(exportJson);
 
-                RedButton exportDun = new RedButton(Messages.get(WndSelectDungeon.class, "export_dun_label")) {
+                StyledButton exportDun = new StyledButton(Chrome.Type.GREY_BUTTON_TR, Messages.get(WndSelectDungeon.class, "export_dun_label"), 8) {
                     @Override
                     protected void onClick() {
                         EditorScene.show(new WndExportDungeon(info));
                     }
-                };
-                exportDun.enable(info.numLevels > 0);
-
-                RedButton upload = new RedButton(Messages.get(WndSelectDungeon.class, "upload_label")) {
+                    
                     @Override
-                    protected void onClick() {
-                        UploadDungeon.showUploadWindow(ServerCommunication.UploadType.UPLOAD, info.name);
+                    protected void layout() {
+                        height = Math.max(getMinimumHeight(width()), Math.max(height(), upload.height()*3/4));
+                        super.layout();
                     }
                 };
+                exportDun.enable(info.numLevels > 0);
+                exportDun.multiline = true;
+                exportDun.leftJustify = false;
+                content.add(exportDun);
+                
                 upload.enable(!info.downloaded && info.numLevels > 0);
                 upload.icon(Icons.UPLOAD.get());
+                upload.multiline = true;
+                upload.leftJustify = false;
+                content.add(upload);
 
                 IconButton rename = new IconButton(Icons.get(Icons.SCROLL_COLOR)) {
                     @Override
@@ -541,38 +578,33 @@ public class WndSelectDungeon extends Window {
 
                 float pos = 2;
                 title.maxWidth((int) (width - iconWidth - 2));
-                title.setPos((title.maxWidth() - title.width()) * 0.5f, pos);
+                title.setPos(Math.min((width-title.width())*0.5f, width - iconWidth - 2 - title.width()), pos);
 
                 rename.setRect(width - iconWidth, title.top() + (title.height() - rename.icon().height()) * 0.5f, rename.icon().width(), rename.icon().height());
                 copy.setRect(rename.right() + 2, title.top() + (title.height() - rename.icon().height()) * 0.5f, copy.icon().width(), copy.icon().height());
-                pos = title.bottom() + GAP;
+                pos = title.bottom() + GAP * 2;
 
-                pos = statSlot(Messages.get(WndSelectDungeon.class, "num_floors"), Integer.toString(info.numLevels), pos) + GAP * 3;
+//                pos += statSlot(Messages.get(WndSelectDungeon.class, "hashcode"), Integer.toHexString(info.hashcode), pos) + GAP * 3;
 
-//                pos += statSlot(Messages.get(WndSelectDungeon.class, "hashcode"), Integer.toHexString(info.hashcode), pos);
-
-                cont.icon(Icons.get(Icons.ENTER));
-                cont.setRect(0, pos, width / 2 - 1, 20);
-                add(cont);
-
-                erase.icon(Icons.get(Icons.TRASH));
-                erase.setRect(width / 2 + 1, pos, width / 2 - 1, 20);
-                add(erase);
-
-                pos = erase.bottom() + 3;
-
-                exportJson.setRect(0, pos, width, 20);
-                add(exportJson);
-                pos = exportJson.bottom() + 2;
-
-                exportDun.setRect(0, pos, width, 20);
-                add(exportDun);
-                pos = exportDun.bottom() + 2;
-
-                upload.setRect(0, pos, width, 20);
-                add(upload);
-
-                resize(width, (int) upload.bottom() + 1);
+                content.setRect(0, pos, width, 0);
+                if (PixelScene.landscape()) {
+                    content.setSize(width, EditorUtilities.layoutStyledCompsInRectangles(2, width, 3, content, exportDun, exportJson, upload));
+                } else {
+                    EditorUtilities.layoutStyledCompsInRectangles(2, width, 1, content, upload);//we need to determine the height of the upload-btn first
+                    content.setSize(width, EditorUtilities.layoutStyledCompsInRectangles(2, width, 2, content, exportDun, exportJson) + GAP);
+                    content.setSize(width, EditorUtilities.layoutStyledCompsInRectangles(2, width, 1, content, upload));
+                }
+                pos = content.bottom() + GAP;
+                
+                
+                open.icon(Icons.ENTER.get());
+                open.setRect(0, pos, width / 2f - 1, 20);
+                
+                erase.icon(Icons.TRASH.get());
+                erase.setRect(width / 2f + 1, pos, width / 2f - 1, 20);
+                
+                
+                resize(width, (int) open.bottom() + 1);
             }
 
             private float statSlot(String label, String value, float pos) {

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.spells.GuidingLight;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.KindofMisc;
+import com.shatteredpixel.shatteredpixeldungeon.items.RechargeRule;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.utils.GLog;
 import com.watabou.utils.Bundle;
@@ -50,6 +51,9 @@ public class Artifact extends KindofMisc {
 	//levelCap is the artifact's maximum level
 	protected int levelCap = 0;
 
+	//when or if it can rechange
+	public RechargeRule rechargeRule = RechargeRule.ALWAYS;
+	
 	//the current artifact charge
 	protected int charge = 0;
 	//the build towards next charge, usually rolls over at 1.
@@ -150,7 +154,7 @@ public class Artifact extends KindofMisc {
 	public static void artifactProc(Char target, int artifLevel, int chargesUsed){
 		if (Dungeon.hero.subClass == HeroSubClass.PRIEST && target.buff(GuidingLight.Illuminated.class) != null) {
 			target.buff(GuidingLight.Illuminated.class).detach();
-			target.damage(Dungeon.hero.lvl, GuidingLight.INSTANCE);
+			target.damage(5+Dungeon.hero.lvl, GuidingLight.INSTANCE);
 		}
 
 		if (target.alignment != Char.Alignment.ALLY
@@ -276,7 +280,9 @@ public class Artifact extends KindofMisc {
 		}
 
 		public void charge(Hero target, float amount){
-			Artifact.this.charge(target, amount);
+			if (rechargeRule.rechargeableByBuff()) {
+				Artifact.this.charge(target, amount);
+			}
 		}
 
 	}
@@ -284,6 +290,7 @@ public class Artifact extends KindofMisc {
 	private static final String EXP = "exp";
 	private static final String CHARGE = "charge";
 	private static final String PARTIALCHARGE = "partialcharge";
+	private static final String RECHARGE_RULE = "recharge_rule";
 
 	@Override
 	public void storeInBundle( Bundle bundle ) {
@@ -291,6 +298,7 @@ public class Artifact extends KindofMisc {
 		bundle.put( EXP , exp );
 		bundle.put( CHARGE , charge );
 		bundle.put( PARTIALCHARGE , partialCharge );
+		bundle.put( RECHARGE_RULE, rechargeRule );
 	}
 
 	@Override
@@ -300,6 +308,7 @@ public class Artifact extends KindofMisc {
 		if (chargeCap > 0)  charge = Math.min( chargeCap, bundle.getInt( CHARGE ));
 		else                charge = bundle.getInt( CHARGE );
 		partialCharge = bundle.getFloat( PARTIALCHARGE );
+		rechargeRule = bundle.contains(RECHARGE_RULE) ? bundle.getEnum(RECHARGE_RULE, RechargeRule.class) : null;
 	}
 
 	public final int levelCap() {

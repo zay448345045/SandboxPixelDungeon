@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,8 +148,8 @@ public class Ghost extends QuestNPC<GhostQuest> {
 
 		if (quest == null || quest.type() < 0) return true;
 
-		if (quest.given()) {
-			if (quest.weapon != null && quest.completed()) {
+		if (quest.given() || autoCompletedQuest) {
+			if (quest.weapon != null && (quest.completed() || autoCompletedQuest)) {
 				Game.runOnRenderThread(new Callback() {
 					@Override
 					public void call() {

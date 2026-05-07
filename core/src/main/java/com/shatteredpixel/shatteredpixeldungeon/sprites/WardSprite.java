@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ import com.watabou.noosa.tweeners.AlphaTweener;
 
 public class WardSprite extends MobSprite {
 
-	private Animation tierIdles[] = new Animation[7];
+	private final Animation[] tierIdles = new Animation[7];
 
 	public WardSprite(){
 		super();
@@ -105,10 +105,12 @@ public class WardSprite extends MobSprite {
 	}
 
 	public void linkVisuals(Char ch ){
-		
-		if (ch == null) return;
-		
-		updateTier( ((WandOfWarding.Ward)ch).tier );
+
+		if (ch instanceof WandOfWarding.Ward) {
+			updateTier(((WandOfWarding.Ward) ch).tier);
+		} else {
+			updateTier(5); //defaults to 5
+		}
 		
 	}
 

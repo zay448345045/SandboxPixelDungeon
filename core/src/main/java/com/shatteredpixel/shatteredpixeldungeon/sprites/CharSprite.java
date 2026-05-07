@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.DM100;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.effects.ColoringBlock;
 import com.shatteredpixel.shatteredpixeldungeon.effects.DarkBlock;
 import com.shatteredpixel.shatteredpixeldungeon.effects.EmoIcon;
 import com.shatteredpixel.shatteredpixeldungeon.effects.Flare;
@@ -91,7 +92,7 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 	protected float shadowOffset    = 0.25f;
 
 	public enum State {
-		BURNING, LEVITATING, INVISIBLE, HALF_INVISIBLE, PARALYSED, FROZEN, ILLUMINATED, CHILLED, DARKENED, MARKED, HEALING, SHIELDED, HEARTS, GLOWING, AURA
+		BURNING, LEVITATING, INVISIBLE, HALF_INVISIBLE, PARALYSED, FROZEN, ILLUMINATED, CHILLED, DARKENED, MARKED, HEALING, SHIELDED, HEARTS, GLOWING, AURA, COLORED
 	}
 	
 	public Animation idle;
@@ -114,6 +115,7 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 	
 	protected IceBlock iceBlock;
 	protected DarkBlock darkBlock;
+	protected ColoringBlock coloringBlock;
 	protected GlowBlock glowBlock;
 	protected TorchHalo light;
 	protected ShieldHalo shield;
@@ -242,8 +244,9 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 			}
 			float x = destinationCenter().x;
 			float y = destinationCenter().y - height()/2f;
+			int pos = DungeonTilemap.worldToTile(x, y + height(), Dungeon.level.width());
 			if (ch != null) {
-				FloatingText.show( x, y, ch.pos, text, color, icon, true );
+				FloatingText.show( x, y, pos, text, color, icon, true );
 			} else {
 				FloatingText.show( x, y, -1, text, color, icon, true );
 			}
@@ -446,19 +449,36 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 	private final HashSet<State> stateAdditions = new HashSet<>();
 
 	public void add( State state ) {
-		synchronized (State.class) {
-			stateRemovals.remove(state);
-			stateAdditions.add(state);
+		//instant as it just changes an animation property that will get read later
+		if (state == State.PARALYSED){
+			paused = true;
+		} else {
+			synchronized (State.class) {
+				stateRemovals.remove(state);
+				stateAdditions.add(state);
+			}
 		}
 	}
 
 	private int auraColor = 0;
+	private int auraRays = 0;
 
-	//Aura needs color data too
-	public void aura( int color ){
+	//Aura needs color and ray count data too
+	public void aura( int color, int nRays ){
 		if (!subSprite) {
 			add(State.AURA);
 			auraColor = color;
+			auraRays = nRays;
+		}
+	}
+	
+	private int coloringBlockColor;
+	
+	//COLORED needs color data too
+	public void applyColor(int color) {
+		if (!subSprite) {
+			add(State.COLORED);
+			coloringBlockColor = color;
 		}
 	}
 
@@ -535,7 +555,7 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 				if (aura != null)   aura.killAndErase();
 				float size = Math.max(width(), height());
 				size = Math.max(size+4, 16);
-				aura = new Flare(5, size);
+				aura = new Flare(auraRays, size);
 				aura.angularSpeed = 90;
 				aura.color(auraColor, true);
 				aura.visible = visible;
@@ -544,6 +564,10 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 					aura.show(this, 0);
 				}
 				break;
+			case COLORED:
+				if (coloringBlock != null) coloringBlock.killAndErase();
+				coloringBlock = ColoringBlock.apply(this, coloringBlockColor);
+				break;
 		}
 		if (realCharSprite != null) realCharSprite.add(state);
 	}
@@ -551,9 +575,14 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 	private final HashSet<State> stateRemovals = new HashSet<>();
 
 	public void remove( State state ) {
-		synchronized (State.class) {
-			stateAdditions.remove(state);
-			stateRemovals.add(state);
+		//instant as it just changes an animation property that will get read later
+		if (state == State.PARALYSED){
+			paused = false;
+		} else {
+			synchronized (State.class) {
+				stateAdditions.remove(state);
+				stateRemovals.add(state);
+			}
 		}
 	}
 
@@ -652,6 +681,12 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 					aura = null;
 				}
 				break;
+			case COLORED:
+				if (coloringBlock != null) {
+					coloringBlock.undoEffect();
+					coloringBlock = null;
+				}
+				break;
 		}
 		if (realCharSprite != null) realCharSprite.remove(state);
 	}
@@ -719,6 +754,9 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 		}
 		if (glowBlock != null){
 			glowBlock.visible =visible;
+		}
+		if (coloringBlock != null) {
+			coloringBlock.visible = visible;
 		}
 
 		if (sleeping) {
@@ -788,6 +826,27 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 			}
 		}
 	}
+
+	public void showInvestigate() {
+		synchronized (EmoIcon.class) {
+			if (!(emo instanceof EmoIcon.Investigate)) {
+				if (emo != null) {
+					emo.killAndErase();
+				}
+				emo = new EmoIcon.Investigate(this);
+				emo.visible = visible;
+			}
+		}
+	}
+
+	public void hideInvestigate() {
+		synchronized (EmoIcon.class) {
+			if (emo instanceof EmoIcon.Investigate) {
+				emo.killAndErase();
+				emo = null;
+			}
+		}
+	}
 	
 	public void showLost() {
 		synchronized (EmoIcon.class) {
@@ -840,7 +899,7 @@ public class CharSprite extends MovieClip implements Tweener.Listener, MovieClip
 		if (extraCode != null) extraCode.onKill(this);
 	}
 
-	private float[] shadowMatrix = new float[16];
+	private final float[] shadowMatrix = new float[16];
 
 	@Override
 	protected void updateMatrix() {

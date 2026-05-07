@@ -2,7 +2,6 @@ package com.shatteredpixel.shatteredpixeldungeon.editor.quests;
 
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.GameObject;
-import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.CustomDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.editor.levels.LevelScheme;
 import com.shatteredpixel.shatteredpixeldungeon.items.EquipableItem;
@@ -13,9 +12,14 @@ import com.shatteredpixel.shatteredpixeldungeon.items.quest.DarkGold;
 import com.shatteredpixel.shatteredpixeldungeon.items.quest.Pickaxe;
 import com.shatteredpixel.shatteredpixeldungeon.items.trinkets.ParchmentScrap;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
+import com.shatteredpixel.shatteredpixeldungeon.items.weapon.missiles.MissileWeapon;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.BlacksmithRoom;
-import com.shatteredpixel.shatteredpixeldungeon.sprites.*;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.BatSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.CrystalGuardianSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.GnollGuardSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
+import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
 import com.watabou.noosa.Image;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.Function;
@@ -38,6 +42,7 @@ public class BlacksmithQuest extends Quest {
     //reward tracking. Stores remaining favor, the pickaxe, and how many of each reward has been chosen
     public int favor;
     public Item pickaxe = new Pickaxe().identify(!CustomDungeon.isEditing());
+    public boolean freePickaxe;
     public int reforges; //also used by the pre-v2.2.0 version of the quest
     public int hardens;
     public int upgrades;
@@ -78,9 +83,10 @@ public class BlacksmithQuest extends Quest {
             else if (itemLevelRoll < 0.95f) rewardLevel = 2;
             else rewardLevel = 3;
 
-            int weapons = 0, armors = 0;
+            int weapons = 0, armors = 0, missileWeapons = 0;
             for (Item i : smithRewards) {
-                if (i instanceof Weapon) weapons++;
+                if (i instanceof MissileWeapon) missileWeapons++;
+                else if (i instanceof Weapon) weapons++;
                 else if (i instanceof Armor) armors++;
             }
             if (weapons == 0) {
@@ -121,6 +127,14 @@ public class BlacksmithQuest extends Quest {
                 a.inscribe(null);
                 a.cursed = false;
             }
+            if (missileWeapons == 0) {
+                MissileWeapon w;
+                smithRewards.add(w = Generator.randomMissile(3, useDecks));
+                w.level(rewardLevel);
+                w.enchant(null);
+                w.cursed = false;
+                missileWeapons++;
+            }
         }
 
         // 30% base chance to be enchanted, stored separately so status isn't revealed early
@@ -139,7 +153,9 @@ public class BlacksmithQuest extends Quest {
         if (type == BASED_ON_DEPTH) {
             type = levelScheme.generateBlacksmithQuest();
             levelScheme.roomsToSpawn.add(new BlacksmithRoom());
-        } else if (type == RANDOM) type = CRYSTAL + Random.Int(getNumQuests()-2);//Do not generate the old quests
+        } else if (type == RANDOM) {
+            type = CRYSTAL + Random.Int(getNumQuests()-2);//Do not generate the old quests
+        }
     }
 
     @Override
@@ -172,8 +188,23 @@ public class BlacksmithQuest extends Quest {
 
         addScore(2, favor);
         questScore = favor;
+        
+        if (favor >= 2500){
+            freePickaxe = true;
+        }
     }
 
+    public void autoComplete() {
+        super.complete();
+        super.start();
+        questScore = 0;
+        favor = 2500;
+        freePickaxe = false;
+        if (pickaxe == null) {
+            pickaxe = new Pickaxe().identify(false);
+        }
+    }
+    
     @Override
     public void start() {
         super.start();
@@ -184,7 +215,7 @@ public class BlacksmithQuest extends Quest {
     public boolean rewardsAvailable(){
         return favor > 0
                 || (smithRewards != null && smiths > 0)
-                || (pickaxe != null && Statistics.questScores[2] >= 2500);
+                || (pickaxe != null && freePickaxe);
     }
 
     public void actualStart() {
@@ -208,6 +239,7 @@ public class BlacksmithQuest extends Quest {
     private static final String BOSS_BEATEN = "boss_beaten";
     private static final String FAVOR = "favor";
     private static final String PICKAXE = "pickaxe";
+    private static final String FREE_PICKAXE = "free_pickaxe";
     private static final String REFORGES = "reforges";
     private static final String HARDENS = "hardens";
     private static final String UPGRADES = "upgrades";
@@ -223,9 +255,11 @@ public class BlacksmithQuest extends Quest {
         super.storeInBundle(bundle);
 
         bundle.put(ID, id);
+        bundle.put(PICKAXE, pickaxe);
 
         bundle.put(STARTED, started);
         bundle.put(BOSS_BEATEN, bossBeaten);
+        bundle.put(FREE_PICKAXE, freePickaxe);
 
         bundle.put(FAVOR, favor);
         bundle.put(REFORGES, reforges);
@@ -252,10 +286,15 @@ public class BlacksmithQuest extends Quest {
         started = bundle.getBoolean(STARTED);
         bossBeaten = bundle.getBoolean(BOSS_BEATEN);
 
-        favor = bundle.getInt(FAVOR);
 
         if (bundle.contains(PICKAXE)) pickaxe = (Item) bundle.get(PICKAXE);
         else pickaxe = null;
+        if (bundle.contains(FREE_PICKAXE)){
+            freePickaxe = bundle.getBoolean(FREE_PICKAXE);
+        } else {
+            //some for pre-3.1 saves, some from incorrect values from v3.1-BETA-1.0
+            freePickaxe = favor >= 2500;
+        }
 
         if (bundle.contains("reforged")) {
             //pre-v2.2.0 saves
@@ -276,6 +315,8 @@ public class BlacksmithQuest extends Quest {
                 smithGlyph   = (Armor.Glyph) bundle.get(GLYPH);
             }
 
+        } else {
+            smithRewards = null;
         }
     }
 

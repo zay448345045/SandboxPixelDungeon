@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,71 +36,72 @@ import java.util.Collection;
 
 public class PinCushion extends Buff {
 
-    private ArrayList<MissileWeapon> items = new ArrayList<>();
+	private ArrayList<MissileWeapon> items = new ArrayList<>();
 
-    public void stick(MissileWeapon projectile) {
-        for (Item item : items) {
-            if (item.isSimilar(projectile)) {
-                item.merge(projectile);
-                if (TippedDart.lostDarts > 0) {
-                    Dart d = new Dart();
-                    d.quantity(TippedDart.lostDarts);
-                    TippedDart.lostDarts = 0;
-                    stick(d);
-                }
-                return;
-            }
-        }
-        items.add(projectile);
-    }
+	public void stick(MissileWeapon projectile){
+		for (int i = 0; i < items.size(); i++) {
+			if (projectile.isSimilar(items.get(i))) {
+				projectile.merge(items.get(i));
+				items.set(i, projectile);
+				if (TippedDart.lostDarts > 0) {
+					Dart d = new Dart();
+					d.quantity(TippedDart.lostDarts);
+					TippedDart.lostDarts = 0;
+					stick(d);
+				}
+				return;
+			}
+		}
+		items.add(projectile);
+	}
 
-    public Item grabOne() {
-        Item item = items.remove(0);
-        if (items.isEmpty()) {
-            detach();
-        }
-        return item;
-    }
+	public Item grabOne(){
+		Item item = items.remove(0);
+		if (items.isEmpty()){
+			detach();
+		}
+		return item;
+	}
 
-    public ArrayList<MissileWeapon> getStuckItems() {
-        return new ArrayList<>(items);
-    }
+	public ArrayList<MissileWeapon> getStuckItems(){
+		return new ArrayList<>(items);
+	}
 
-    @Override
-    public void detach() {
-        if (!CustomDungeon.isEditing()) {
-            for (Item item : items)
-                Dungeon.level.drop(item, target.pos).sprite.drop();
-        }
-        super.detach();
-    }
+	@Override
+	public void detach() {
+		if (!CustomDungeon.isEditing()) {
+			for (Item item : items)
+				Dungeon.level.drop( item, target.pos).sprite.drop();
+		}
+		super.detach();
+	}
 
-    private static final String ITEMS = "items";
+	private static final String ITEMS = "items";
 
-    @Override
-    public void storeInBundle(Bundle bundle) {
-        bundle.put(ITEMS, items);
-        super.storeInBundle(bundle);
-    }
+	@Override
+	public void storeInBundle(Bundle bundle) {
+		if (items != null) bundle.put( ITEMS , items );
+		super.storeInBundle(bundle);
+	}
 
-    @Override
-    public void restoreFromBundle(Bundle bundle) {
-        items = new ArrayList<>((Collection<MissileWeapon>) ((Collection<?>) bundle.getCollection(ITEMS)));
-        super.restoreFromBundle(bundle);
-    }
+	@Override
+	public void restoreFromBundle(Bundle bundle) {
+		items = new ArrayList<>((Collection<MissileWeapon>) ((Collection<?>) bundle.getCollection(ITEMS)));
+		super.restoreFromBundle( bundle );
+	}
 
-    @Override
-    public int icon() {
-        return BuffIndicator.PINCUSHION;
-    }
+	@Override
+	public int icon() {
+		return BuffIndicator.PINCUSHION;
+	}
 
-    @Override
-    public String desc() {
-        String desc = Messages.get(this, "desc");
-        for (Item i : items) {
-            desc += "\n" + i.title();
-        }
-        return desc;
-    }
+	@Override
+	public String desc() {
+		String desc = Messages.get(this, "desc");
+		for (Item i : items){
+			desc += "\n" + i.title();
+		}
+		return desc;
+	}
 
 }

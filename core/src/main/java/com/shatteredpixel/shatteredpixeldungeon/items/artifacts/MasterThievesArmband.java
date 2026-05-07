@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ public class MasterThievesArmband extends Artifact {
 									stoleSth = true;
 									if (l.doPickUp(curUser)) {
 										//item collection happens instantly
-										curUser.spend(-TIME_TO_PICK_UP);
+										curUser.spend(-l.pickupDelay());
 									} else {
 										Dungeon.level.drop(l, curUser.pos).sprite.drop();
 									}
@@ -284,7 +284,7 @@ public class MasterThievesArmband extends Artifact {
 		}
 
 		public void gainCharge(float levelPortion) {
-			if (cursed || target.buff(MagicImmune.class) != null) return;
+			if (cursed || target.buff(MagicImmune.class) != null || !rechargeRule.normalRechargeable()) return;
 
 			if (charge < chargeCap){
 				float chargeGain = 3f * levelPortion;

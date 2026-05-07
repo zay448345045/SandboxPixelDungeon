@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,12 @@ import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
-import com.watabou.utils.*;
+import com.watabou.utils.GameMath;
+import com.watabou.utils.PathFinder;
+import com.watabou.utils.Point;
+import com.watabou.utils.PointF;
+import com.watabou.utils.Random;
+import com.watabou.utils.WatabouRect;
 
 import java.util.ArrayList;
 
@@ -43,7 +48,7 @@ public class SewerPipeRoom extends StandardRoom {
 
 	@Override
 	public float[] sizeCatProbs() {
-		return new float[]{4, 2, 1};
+		return new float[]{3, 2, 1};
 	}
 
 	@Override
@@ -65,7 +70,8 @@ public class SewerPipeRoom extends StandardRoom {
 
 		WatabouRect c = getConnectionSpace();
 
-		if (connected.size() <= 2) {
+		//connect via center with 1 door or 2 doors on standard size, otherwise use edges
+		if (connected.size() == 1 || (connected.size() == 2 && sizeCat == SizeCategory.NORMAL)) {
 			for (Door door : connected.values()) {
 				
 				Point start;
@@ -105,8 +111,36 @@ public class SewerPipeRoom extends StandardRoom {
 				
 			}
 		} else {
+			ArrayList<Point> doorPoints = new ArrayList<>(connected.values());
+
+			//if we only have two doors, add a phantom 3rd door along an empty wall
+			//This guarantees a minimum open space for larger pipe rooms
+			if (doorPoints.size() == 2){
+				Point p = new Point();
+				boolean valid;
+
+				do {
+					valid = true;
+					if (Random.Int(2) == 0){
+						p.x = Random.Int(2) == 0 ? left : right;
+						p.y = Random.IntRange(top+2, bottom-2);
+					} else {
+						p.x = Random.IntRange(left+2, right-2);
+						p.y = Random.Int(2) == 0 ? top : bottom;
+					}
+
+					for (Point door : connected.values()) {
+						if (door.x == p.x || door.y == p.y){
+							valid = false;
+						}
+					}
+
+				} while (!valid);
+				doorPoints.add(p);
+			}
+
 			ArrayList<Point> pointsToFill = new ArrayList<>();
-			for (Point door : connected.values()) {
+			for (Point door : doorPoints) {
 				Point p = new Point(door);
 				if (p.y == top){
 					p.y+=2;

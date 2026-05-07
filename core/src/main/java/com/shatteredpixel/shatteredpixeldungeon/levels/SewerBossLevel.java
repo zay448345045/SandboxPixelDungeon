@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -222,8 +222,8 @@ public class SewerBossLevel extends SewerLevel {
 			for (CustomTilemap customTile : level.customTiles) {
 				if (customTile instanceof SewerBossExitRoom.SewerExit) {
 					int pos = customTile.tileX + 1 + customTile.tileY * level.width();
-					visuals.add(new PrisonLevel.Torch(pos - 1));
-					visuals.add(new PrisonLevel.Torch(pos + 1));
+					visuals.add(new PrisonLevel.Torch(pos - 1, (SewerBossExitRoom.SewerExit) customTile));
+					visuals.add(new PrisonLevel.Torch(pos + 1, (SewerBossExitRoom.SewerExit) customTile));
 				}
 			}
 		}

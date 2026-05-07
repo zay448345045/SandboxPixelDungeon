@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,59 +21,132 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.windows;
 
-
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
+import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.items.TengusMask;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSprite;
 import com.shatteredpixel.shatteredpixeldungeon.ui.HeroIcon;
+import com.shatteredpixel.shatteredpixeldungeon.ui.IconButton;
+import com.shatteredpixel.shatteredpixeldungeon.ui.Icons;
 import com.shatteredpixel.shatteredpixeldungeon.ui.RedButton;
 import com.shatteredpixel.shatteredpixeldungeon.ui.StyledButton;
+import com.watabou.noosa.Game;
 import com.watabou.noosa.ui.Component;
+import com.watabou.utils.Random;
 
 public class WndChooseSubclass extends AbstractWndChooseSubclass {
-
-	public WndChooseSubclass(final TengusMask tome, final Hero hero ) {
-
-		super(createTitlebar(tome),
+	
+	public WndChooseSubclass(final TengusMask tome, final Hero hero) {
+		
+		super(createTitlebar(tome, hero),
 				Messages.get(WndChooseSubclass.class, "message"),
 				Messages.get(WndChooseSubclass.class, "cancel"),
 				hero.heroClass, tome);
+		
+		if (((TitleClassComp) titlebar).random != null) {
+			//we need this because the button was created before the window
+			((TitleClassComp) titlebar).random.givePointerPriority();
+		}
 
 	}
 
-	private static Component createTitlebar(TengusMask tome){
-		IconTitle titlebar = new IconTitle();
-		titlebar.icon( new ItemSprite( tome.image(), null ) );
-		titlebar.label( tome.name() );
-		return titlebar;
+	private static TitleClassComp createTitlebar(TengusMask tome, Hero hero) {
+		TitleClassComp result = new TitleClassComp();
+		
+		result.title = new IconTitle();
+		result.title.icon(new ItemSprite(tome.image(), null));
+		result.title.label(tome.name());
+		result.add(result.title);
+		
+		if (!hero.heroClass.areAllSubClassesDisabled()) {
+			result.random = new IconButton(Icons.SHUFFLE.get()) {
+				@Override
+				protected void onClick() {
+					super.onClick();
+					GameScene.show(new WndOptions(Icons.SHUFFLE.get(),
+							Messages.get(WndChooseSubclass.class, "random_title"),
+							Messages.get(WndChooseSubclass.class, "random_sure"),
+							Messages.get(WndChooseSubclass.class, "yes"),
+							Messages.get(WndChooseSubclass.class, "no")) {
+						@Override
+						protected void onSelect(int index) {
+							super.onSelect(index);
+							if (index == 0) {
+								EditorUtilities.getParentWindow(result.random).hide();
+								HeroSubClass cls;
+								do {
+									cls = Random.oneOf(hero.heroClass.subClasses());
+								} while (!Dungeon.customDungeon.heroSubClassesEnabled[cls.getIndex()]);
+								tome.choose(cls);
+								GameScene.show(new WndInfoSubclass(hero.heroClass, cls));
+							}
+						}
+					});
+				}
+				
+				@Override
+				public void update() {
+					if (Statistics.qualifiedForRandomVictoryBadge) {
+						icon.tint(1, 1, 1, (float) Math.abs(Math.cos(1.5f * Math.PI * Game.timeTotal) / 2f));
+					}
+					super.update();
+				}
+				
+				@Override
+				protected String hoverText() {
+					return Messages.get(WndChooseSubclass.class, "random_title");
+				}
+			};
+			result.add(result.random);
+		}
+		
+		return result;
 	}
-
+	
 	@Override
 	protected StyledButton createHeroSubClassButton(final TengusMask tome, HeroSubClass subCls) {
 		if (!Dungeon.customDungeon.heroSubClassesEnabled[subCls.getIndex()]) return null;
-		return new RedButton( subCls.shortDesc(), 6 ) {
+		return new RedButton(subCls.shortDesc(), 6) {
 			@Override
 			protected void onClick() {
 				GameScene.show(new WndOptions(new HeroIcon(subCls),
 						Messages.titleCase(subCls.title()),
 						Messages.get(WndChooseSubclass.this, "are_you_sure"),
 						Messages.get(WndChooseSubclass.this, "yes"),
-						Messages.get(WndChooseSubclass.this, "no")){
+						Messages.get(WndChooseSubclass.this, "no")) {
 					@Override
 					protected void onSelect(int index) {
 						hide();
-						if (index == 0 && WndChooseSubclass.this.parent != null){
+						if (index == 0 && WndChooseSubclass.this.parent != null) {
 							WndChooseSubclass.this.hide();
-							tome.choose( subCls );
+							tome.choose(subCls);
+							Statistics.qualifiedForRandomVictoryBadge = false;
 						}
 					}
 				});
 			}
 		};
 	}
-
+	
+	private static class TitleClassComp extends Component {
+		
+		private IconTitle title;
+		private IconButton random;
+		
+		@Override
+		protected void layout() {
+			if (random == null) {
+				title.setRect(0, 0, width, 0);
+			} else {
+				title.setRect(0, 0, width - 16, 0);
+				random.setRect(width - 16, 0, 16, 16);
+			}
+			height = title.height();
+		}
+	}
 }

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,12 +36,17 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.editor.lua.DungeonScript;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.ElmoParticle;
 import com.shatteredpixel.shatteredpixeldungeon.items.Ankh;
-import com.shatteredpixel.shatteredpixeldungeon.items.ArcaneResin;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.Bag;
 import com.shatteredpixel.shatteredpixeldungeon.items.bags.MagicalHolster;
 import com.shatteredpixel.shatteredpixeldungeon.items.scrolls.ScrollOfRecharging;
-import com.shatteredpixel.shatteredpixeldungeon.items.wands.*;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.Wand;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfCorrosion;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfCorruption;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfDisintegration;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfLivingEarth;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfRegrowth;
+import com.shatteredpixel.shatteredpixeldungeon.items.wands.WandOfYendor;
 import com.shatteredpixel.shatteredpixeldungeon.items.weapon.Weapon;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
@@ -271,12 +276,20 @@ public class MagesStaff extends MeleeWeapon {
 		
 		level(targetLevel);
 		this.wand = wand;
+		wand.levelKnown = wand.curChargeKnown = true;
 		updateWand(false);
 		wand.curCharges = Math.min(wand.maxCharges, wand.curCharges+oldStaffcharges);
 		if (owner != null){
 			applyWandChargeBuff(owner);
  		} else if (Dungeon.hero.belongings.contains(this)){
 			applyWandChargeBuff(Dungeon.hero);
+		}
+
+		if (wand.cursed && (!this.cursed || !this.hasCurseEnchant())){
+			equipCursed(Dungeon.hero);
+			setCursedKnown(true);
+			this.cursed = true;
+			enchant(Enchantment.randomCurse());
 		}
 
 		//This is necessary to reset any particles.
@@ -444,14 +457,6 @@ public class MagesStaff extends MeleeWeapon {
 		public void onSelect( final Item item ) {
 			if (item != null) {
 
-				if (!item.isIdentified()) {
-					GLog.w(Messages.get(MagesStaff.class, "id_first"));
-					return;
-				} else if (item.cursed){
-					GLog.w(Messages.get(MagesStaff.class, "cursed"));
-					return;
-				}
-
 				if (wand == null){
 					applyWand((Wand)item);
 				} else {
@@ -464,7 +469,17 @@ public class MagesStaff extends MeleeWeapon {
 						newLevel = trueLevel();
 					}
 
-					String bodyText = Messages.get(MagesStaff.class, "imbue_desc", newLevel);
+					String bodyText = Messages.get(MagesStaff.class, "imbue_desc");
+					if (item.isIdentified()){
+						bodyText += "\n\n" + Messages.get(MagesStaff.class, "imbue_level", newLevel);
+					} else {
+						bodyText += "\n\n" + Messages.get(MagesStaff.class, "imbue_unknown", trueLevel());
+					}
+
+					if (!item.cursedKnown() || item.cursed){
+						bodyText += "\n\n" + Messages.get(MagesStaff.class, "imbue_cursed");
+					}
+
 					if (Dungeon.hero.hasTalent(Talent.WAND_PRESERVATION)
 						&& Dungeon.hero.buff(Talent.WandPreservationCounter.class) == null){
 						bodyText += "\n\n" + Messages.get(MagesStaff.class, "imbue_talent");

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,12 @@
 
 package com.shatteredpixel.shatteredpixeldungeon.items.trinkets;
 
-import com.shatteredpixel.shatteredpixeldungeon.*;
+import com.shatteredpixel.shatteredpixeldungeon.Assets;
+import com.shatteredpixel.shatteredpixeldungeon.Badges;
+import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
+import com.shatteredpixel.shatteredpixeldungeon.GameObject;
+import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
+import com.shatteredpixel.shatteredpixeldungeon.Statistics;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
@@ -76,7 +81,7 @@ public class TrinketCatalyst extends Item {
 	}
 
 	public ArrayList<Trinket> rolledTrinkets = new ArrayList<>();
-	public int numChoosableTrinkets = 3;// must always be  0 < this < Generator.Category.Trinket.classes.length
+	public int numChoosableTrinkets = 4;// must always be  0 < this < Generator.Category.Trinket.classes.length
 	private boolean paidEnergy;
 
 	@Override
@@ -109,8 +114,8 @@ public class TrinketCatalyst extends Item {
 		numChoosableTrinkets = bundle.getInt(NUM_CHOOSABLE_TRINKETS);
 		paidEnergy = bundle.getBoolean(PAID_ENERGY);
 		rolledTrinkets.clear();
-		if (bundle.contains(ROLLED_TRINKETS)){
-			rolledTrinkets.addAll((Collection<Trinket>) ((Collection<?>)bundle.getCollection( ROLLED_TRINKETS )));
+		if (bundle.contains(ROLLED_TRINKETS)) {
+			rolledTrinkets.addAll((Collection<Trinket>) ((Collection<?>) bundle.getCollection( ROLLED_TRINKETS )));
 		}
 	}
 
@@ -156,7 +161,7 @@ public class TrinketCatalyst extends Item {
 	public static class RandomTrinket extends Item {
 
 		{
-			image = ItemSpriteSheet.TRINKET_HOLDER;
+			image = ItemSpriteSheet.SOMETHING;
 		}
 
 	}
@@ -188,7 +193,7 @@ public class TrinketCatalyst extends Item {
 			super();
 
 			initComponents(
-					new IconTitle(new ItemSprite(cata), Messages.titleCase(cata.name())),
+					new IconTitle(new ItemSprite(cata), Messages.titleCase(Messages.get(TrinketCatalyst.class, "window_title"))),
 					new SingleItemRewardsBody(Messages.get(TrinketCatalyst.class, "window_text"), null, cata, cata.rolledTrinkets.toArray(EditorUtilities.EMPTY_ITEM_ARRAY)) {
 						@Override
 						protected void onSelectReward(Item reward) {

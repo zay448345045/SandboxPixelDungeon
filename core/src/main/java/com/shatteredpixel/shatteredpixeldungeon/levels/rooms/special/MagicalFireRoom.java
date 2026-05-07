@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ import com.shatteredpixel.shatteredpixeldungeon.effects.particles.ElmoParticle;
 import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
 import com.shatteredpixel.shatteredpixeldungeon.items.Honeypot;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
-import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfLiquidFlame;
+import com.shatteredpixel.shatteredpixeldungeon.items.potions.PotionOfFrost;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
@@ -53,7 +53,7 @@ import java.util.Set;
 public class MagicalFireRoom extends SpecialRoom {
 
 	{
-		spawnItemsOnLevel.add(new PotionOfLiquidFlame());
+		spawnItemsOnLevel.add(new PotionOfFrost());
 	}
 
 	@Override
@@ -114,8 +114,12 @@ public class MagicalFireRoom extends SpecialRoom {
 		int n = Random.IntRange( 3, 4 );
 
 		for (int i=0; i < n; i++) {
-			if (honeyPot) spawnItemsInRoom.add(new Honeypot());
-			else spawnItemsInRoom.add(prize(level));
+			if (honeyPot) {
+				spawnItemsInRoom.add(new Honeypot());
+				honeyPot = false;
+			} else {
+				spawnItemsInRoom.add(prize(level));
+			}
 		}
 	}
 

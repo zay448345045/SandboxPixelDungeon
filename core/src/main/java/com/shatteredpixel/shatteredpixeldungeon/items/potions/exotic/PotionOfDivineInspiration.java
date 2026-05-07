@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -170,13 +170,13 @@ public class PotionOfDivineInspiration extends ExoticPotion {
 		@Override
 		public void storeInBundle(Bundle bundle) {
 			super.storeInBundle(bundle);
-			bundle.put(BOOSTED_TIERS, boostedTiers);
+			if (boostedTiers != null) bundle.put(BOOSTED_TIERS, boostedTiers);
 		}
 
 		@Override
 		public void restoreFromBundle(Bundle bundle) {
 			super.restoreFromBundle(bundle);
-			boostedTiers = bundle.getBooleanArray(BOOSTED_TIERS);
+			if (bundle.contains(BOOSTED_TIERS)) boostedTiers = bundle.getBooleanArray(BOOSTED_TIERS);
 		}
 
 		public void setBoosted( int tier ){

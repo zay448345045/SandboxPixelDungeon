@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,15 +58,7 @@ public class TerrainFeaturesTilemap extends DungeonTilemap {
 	@Override
 	protected int getTileVisual(int pos, int tile, boolean flat){
 		if (traps.get(pos) != null){
-			Trap trap = traps.get(pos);
-			if (Dungeon.customDungeon.seeSecrets || CustomDungeon.isEditing()){
-				return (trap.active ? trap.color : Trap.BLACK) + (trap.shape * 16) +
-						(trap.visible ? 0 : 128);
-			}
-			if (!trap.visible)
-				return -1;
-			else
-				return (trap.active ? trap.color : Trap.BLACK) + (trap.shape * 16);
+			return traps.get(pos).getImagePosOnSpriteSheet(false);
 		}
 
 		if (plants.get(pos) != null){
@@ -75,40 +67,39 @@ public class TerrainFeaturesTilemap extends DungeonTilemap {
 
 		if (CustomDungeon.isEditing()
 				|| CustomTileItem.findAnyCustomTileAt(pos) == null) return -1;
-		
-		Zone.GrassType grassType = Zone.getGrassType(Dungeon.level, pos);
 
 		int stage = Dungeon.level.visualRegions[pos];
 		if(stage == 0) stage = Dungeon.curLvlScheme().getVisualRegion() - 1;
 		else stage--;
-		if (tile == Terrain.HIGH_GRASS || grassType == Zone.GrassType.HIGH_GRASS){
-			return 9 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (tile == Terrain.FURROWED_GRASS || grassType == Zone.GrassType.FURROWED_GRASS){
-			return 11 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (tile == Terrain.GRASS || grassType == Zone.GrassType.GRASS) {
-			return 13 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (tile == Terrain.EMBERS) {
-			return 9 + (16*5) + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		}
 		
-		int logicalTerrain = Dungeon.level.map[pos];
-		if (logicalTerrain == Terrain.HIGH_GRASS){
-			return 9 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (logicalTerrain == Terrain.FURROWED_GRASS){
-			return 11 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (logicalTerrain == Terrain.GRASS) {
-			return 13 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
-		} else if (logicalTerrain == Terrain.EMBERS) {
-			return 9 + (16*5) + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
+		int result;
+		if ((result = getRaisedTerrainTileVisual(stage,  Zone.getGrassType(Dungeon.level, pos).terrain, pos)) != -1) return result;
+		
+		if (Dungeon.level.levelScheme.customTilesTex == null) {
+			if ((result = getRaisedTerrainTileVisual(stage, tile, pos)) != -1) return result;
+			if ((result = getRaisedTerrainTileVisual(stage, Dungeon.level.map[pos], pos)) != -1) return result;
 		}
 
+		return -1;
+	}
+	
+	private static int getRaisedTerrainTileVisual(int stage, int terrain, int pos) {
+		if (terrain == Terrain.HIGH_GRASS){
+			return 9 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
+		} else if (terrain == Terrain.FURROWED_GRASS){
+			return 11 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
+		} else if (terrain == Terrain.GRASS) {
+			return 13 + 16*stage + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
+		} else if (terrain == Terrain.EMBERS) {
+			return 9 + (16*5) + (DungeonTileSheet.tileVariance[pos] >= 50 ? 1 : 0);
+		}
 		return -1;
 	}
 
 	public static Image getTrapVisual( Trap trap ){
 		if (instance == null) instance = new TerrainFeaturesTilemap(null, null);
 
-		RectF uv = instance.tileset.get((trap.active ? trap.color : Trap.BLACK) + (trap.shape * 16));
+		RectF uv = instance.tileset.get(trap.getImagePosOnSpriteSheet(false));
 		if (uv == null) return null;
 
 		Image img = new Image( instance.texture );

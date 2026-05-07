@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,14 +109,14 @@ public class Necromancer extends SpawnerMob {
 	public float lootChance() {
 		return super.lootChance() * ((6f - Dungeon.LimitedDrops.NECRO_HP.count) / 6f);
 	}
-
+	
 	@Override
 	public void increaseLimitedDropCount(Item generatedLoot) {
 		if (generatedLoot instanceof PotionOfHealing)
 			Dungeon.LimitedDrops.NECRO_HP.count++;
 		super.increaseLimitedDropCount(generatedLoot);
 	}
-
+	
 	@Override
 	public void die(Object cause) {
 		if (storedSkeletonID != -1){
@@ -143,7 +143,7 @@ public class Necromancer extends SpawnerMob {
 	private static final String FIRST_SUMMON = "first_summon";
 	private static final String SUMMONING_POS = "summoning_pos";
 	private static final String MY_SKELETON = "my_skeleton";
-
+	
 	@Override
 	public void storeInBundle(Bundle bundle) {
 		super.storeInBundle(bundle);
@@ -171,7 +171,7 @@ public class Necromancer extends SpawnerMob {
 			storedSkeletonID = bundle.getInt( MY_SKELETON );
 		}
 	}
-
+	
 	@Override
 	public void onZapComplete(){
 		if (mySummon == null || mySummon.sprite == null || !mySummon.isAlive()){
@@ -206,15 +206,6 @@ public class Necromancer extends SpawnerMob {
 	public Mob summonMinion(){
 		if (Actor.findChar(summoningPos) != null) {
 
-			//cancel if character cannot be moved
-			if (Char.hasProp(Actor.findChar(summoningPos), Property.IMMOVABLE)){
-				summoning = false;
-				if (sprite.extraCode instanceof NecromancerSprite.SummoningParticle)
-					((NecromancerSprite.SummoningParticle) sprite.extraCode).finishSummoning(sprite);
-				spend(TICK);
-				return null;
-			}
-
 			int pushPos = pos;
 			for (int c : PathFinder.NEIGHBOURS8) {
 				if (Actor.findChar(summoningPos + c) == null
@@ -227,14 +218,21 @@ public class Necromancer extends SpawnerMob {
 
 			//push enemy, or wait a turn if there is no valid pushing position
 			if (pushPos != pos) {
-				Char ch = Actor.findChar(summoningPos);
-				Actor.add( new Pushing( ch, ch.pos, pushPos ) );
 
-				ch.pos = pushPos;
-				Dungeon.level.occupyCell(ch );
+				//no push if char is immovable, move our skeleton instead
+				if (Char.hasProp(Actor.findChar(summoningPos), Property.IMMOVABLE)){
+					summoningPos = pushPos;
+				} else {
+					Char ch = Actor.findChar(summoningPos);
+					Actor.add(new Pushing(ch, ch.pos, pushPos));
+
+					ch.pos = pushPos;
+					Dungeon.level.occupyCell(ch);
+				}
 
 			} else {
 
+				//attempt to damage the blocker in addition to waiting
 				Char blocker = Actor.findChar(summoningPos);
 				if (blocker.alignment != alignment){
 					blocker.damage( Random.NormalIntRange(2, 10), new SummoningBlockDamage() );

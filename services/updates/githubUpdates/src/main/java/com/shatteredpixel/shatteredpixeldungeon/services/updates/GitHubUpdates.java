@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ public class GitHubUpdates extends UpdateService {
 //								continue;
 
 							// or that aren't compatible
-							} else if (DeviceCompat.isDesktop()){
+							} else if (DeviceCompat.isAndroid()){
 								Matcher minAndroid = minAndroidPattern.matcher(b.getString("body"));
 								if (minAndroid.find() && DeviceCompat.getPlatformVersion() < Integer.parseInt(minAndroid.group(1))){
 									continue;

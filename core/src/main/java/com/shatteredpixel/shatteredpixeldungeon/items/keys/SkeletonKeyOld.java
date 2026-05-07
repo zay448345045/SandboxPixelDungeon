@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,17 +29,18 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
 
-public class SkeletonKey extends Key {
+public class SkeletonKeyOld extends Key {
 	
 	{
-		image = ItemSpriteSheet.SKELETON_KEY;
+		type = Type.SKELETON;
+		image = ItemSpriteSheet.SOMETHING;
 	}
 	
-	public SkeletonKey() {
+	public SkeletonKeyOld() {
 		this( Dungeon.levelName, -1);
 	}
 
-	public SkeletonKey( String levelName, int cell ) {
+	public SkeletonKeyOld(String levelName, int cell ) {
 		super();
 		if (Level.NONE.equals(levelName)) this.levelName = CustomLevel.tempDungeonNameForKey;
 		else this.levelName = levelName;

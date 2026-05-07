@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MagicImmune;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Regeneration;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Talent;
+import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mimic;
 import com.shatteredpixel.shatteredpixeldungeon.editor.inv.items.TileItem;
 import com.shatteredpixel.shatteredpixeldungeon.effects.CheckedCell;
 import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
@@ -190,7 +191,9 @@ public class TalismanOfForesight extends Artifact {
 					}
 
 					Char ch = Actor.findChar(cell);
-					if (ch != null && ch.alignment != Char.Alignment.NEUTRAL && ch.alignment != curUser.alignment){
+					if (ch != null
+							&& (ch.alignment != Char.Alignment.NEUTRAL || ch instanceof Mimic && !((Mimic) ch).superHidden)
+							&& ch.alignment != curUser.alignment){
 						Buff.append(curUser, CharAwareness.class, 5 + 2*level()).charID = ch.id();
 
 						artifactProc(ch, visiblyUpgraded(), (int)(3 + dist*1.08f));
@@ -280,7 +283,8 @@ public class TalismanOfForesight extends Artifact {
 			if (charge < chargeCap
 					&& !cursed
 					&& target.buff(MagicImmune.class) == null
-					&& Regeneration.regenOn()) {
+					&& Regeneration.regenOn()
+					&& rechargeRule.normalRechargeable()) {
 				//fully charges in 2000 turns at +0, scaling to 1000 turns at +10.
 				float chargeGain = (0.05f+(level()*0.005f));
 				chargeGain *= RingOfEnergy.artifactChargeMultiplier(target);
@@ -353,7 +357,7 @@ public class TalismanOfForesight extends Artifact {
 		}
 
 		public void charge(int boost){
-			if (!cursed && target.buff(MagicImmune.class) == null) {
+			if (!cursed && target.buff(MagicImmune.class) == null && rechargeRule.normalRechargeable()) {
 				charge = Math.min((charge + boost), chargeCap);
 				updateQuickslot();
 			}

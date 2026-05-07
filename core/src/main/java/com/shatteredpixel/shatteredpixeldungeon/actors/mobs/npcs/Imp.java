@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,7 @@ import com.shatteredpixel.shatteredpixeldungeon.items.quest.DwarfToken;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Notes;
 import com.shatteredpixel.shatteredpixeldungeon.levels.RegularLevel;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
-import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
-import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.AmbitiousImpRoom;
 import com.shatteredpixel.shatteredpixeldungeon.messages.Messages;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ImpSprite;
@@ -40,7 +39,6 @@ import com.shatteredpixel.shatteredpixeldungeon.windows.WndImp;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndQuest;
 import com.watabou.noosa.Game;
 import com.watabou.utils.Callback;
-import com.watabou.utils.PathFinder;
 
 import java.util.List;
 
@@ -94,11 +92,17 @@ public class Imp extends QuestNPC<ImpQuest> {
 			return true;
 		}
 
-		if (quest.given()) {
+		if (quest.given() || autoCompletedQuest) {
 			
 			DwarfToken payItems = Dungeon.hero.belongings.getItem( DwarfToken.class );
-			if (payItems != null && payItems.quantity() >= quest.getRequiredQuantity()) {
-				DwarfToken tokens = payItems.quantity() == quest.getRequiredQuantity() ? payItems : (DwarfToken) payItems.split(quest.getRequiredQuantity());
+			if (payItems != null && payItems.quantity() >= quest.getRequiredQuantity() || autoCompletedQuest) {
+				DwarfToken tokens;
+				if (autoCompletedQuest) {
+					tokens = (DwarfToken) new DwarfToken().quantity(0);
+				} else {
+					if (payItems.quantity() == quest.getRequiredQuantity()) tokens = payItems;
+					else tokens = (DwarfToken) payItems.split(quest.getRequiredQuantity());
+				}
 				Game.runOnRenderThread(new Callback() {
 					@Override
 					public void call() {
@@ -139,16 +143,11 @@ public class Imp extends QuestNPC<ImpQuest> {
 
 	@Override
 	public void place(RegularLevel level, List<Room> rooms) {
-		do {
-			pos = level.randomRespawnCell(this);
-		} while (pos == -1 ||
-				level.heaps.get(pos) != null ||
-				level.traps.get(pos) != null ||
-				level.findMob(pos) != null ||
-				//The imp doesn't move, so he cannot obstruct a passageway
-				!(level.isPassableHero(pos + PathFinder.CIRCLE4[0]) && level.isPassableHero(pos + PathFinder.CIRCLE4[2])) ||
-				!(level.isPassableHero(pos + PathFinder.CIRCLE4[1]) && level.isPassableHero(pos + PathFinder.CIRCLE4[3])));
-		if (pos != -1) level.mobs.add(this);
+		for (Room room : rooms) {
+			if (room instanceof AmbitiousImpRoom) {
+				if (((AmbitiousImpRoom) room).placeImp(level, this)) break;
+			}
+		}
 	}
 
 

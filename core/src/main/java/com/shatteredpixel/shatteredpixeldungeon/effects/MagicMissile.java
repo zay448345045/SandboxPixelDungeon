@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 package com.shatteredpixel.shatteredpixeldungeon.effects;
 
 import com.shatteredpixel.shatteredpixeldungeon.actors.Actor;
+import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.BloodParticle;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.CorrosionParticle;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.ElmoParticle;
@@ -275,14 +276,25 @@ public class MagicMissile extends Emitter {
 	}
 
 	//convenience method for the common case of a bolt going from a character to a tile or enemy
+	//similar logic as MissileSprite.missileFromChar()
 	public static MagicMissile boltFromChar(Group group, int type, Visual sprite, int to, Callback callback){
-		MagicMissile missile = ((MagicMissile)group.recycle( MagicMissile.class ));
-		if (Actor.findChar(to) != null){
-			missile.reset(type, sprite.center(), Actor.findChar(to).sprite.destinationCenter(), callback);
+		
+		Char enemy = Actor.findChar( to );
+		
+		//same condition as in doAttack()
+		if (!( sprite != null && (sprite.visible || enemy != null && enemy.sprite.visible) )) {
+			//we don't see that shot
+			callback.call();
+			return null;
 		} else {
-			missile.reset(type, sprite, to, callback);
+			MagicMissile missile = ((MagicMissile) group.recycle(MagicMissile.class));
+			if (enemy != null) {
+				missile.reset(type, sprite.center(), enemy.sprite.destinationCenter(), callback);
+			} else {
+				missile.reset(type, sprite, to, callback);
+			}
+			return missile;
 		}
-		return missile;
 	}
 
 	@Override

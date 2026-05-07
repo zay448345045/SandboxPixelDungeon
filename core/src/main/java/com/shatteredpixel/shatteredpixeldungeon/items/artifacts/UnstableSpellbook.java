@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,7 +61,6 @@ import com.watabou.utils.Random;
 import com.watabou.utils.Reflection;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 public class UnstableSpellbook extends Artifact {
 
@@ -153,6 +152,7 @@ public class UnstableSpellbook extends Artifact {
 				|| (scroll instanceof ScrollOfTransmutation));
 
 		scroll.anonymize();
+		scroll.talentChance = 0;  //spellbook does not trigger on-scroll talents
 		curItem = scroll;
 		curUser = hero;
 
@@ -176,6 +176,7 @@ public class UnstableSpellbook extends Artifact {
 						curItem = scroll;
 						charge--;
 						scroll.anonymize();
+						scroll.talentChance = 0;
 						checkForArtifactProc(curUser, scroll);
 						scroll.doRead();
 						Talent.onArtifactUsed(Dungeon.hero);
@@ -229,6 +230,7 @@ public class UnstableSpellbook extends Artifact {
 			curUser = Dungeon.hero;
 			curItem = scroll;
 			scroll.anonymize();
+			scroll.talentChance = 0;
 			Game.runOnRenderThread(new Callback() {
 				@Override
 				public void call() {
@@ -341,8 +343,10 @@ public class UnstableSpellbook extends Artifact {
 	public void restoreFromBundle( Bundle bundle ) {
 		super.restoreFromBundle(bundle);
 		scrolls.clear();
-		if (bundle.contains(SCROLLS)) {
-			Collections.addAll(scrolls, bundle.getClassArray(SCROLLS));
+		if (bundle.contains(SCROLLS) && bundle.getClassArray(SCROLLS) != null) {
+			for (Class<?> scroll : bundle.getClassArray(SCROLLS)) {
+				if (scroll != null) scrolls.add(scroll);
+			}
 		}
 	}
 
@@ -352,7 +356,8 @@ public class UnstableSpellbook extends Artifact {
 			if (charge < chargeCap
 					&& !cursed
 					&& target.buff(MagicImmune.class) == null
-					&& Regeneration.regenOn()) {
+					&& Regeneration.regenOn()
+					&& rechargeRule.normalRechargeable()) {
 				//120 turns to charge at full, 80 turns to charge at 0/8
 				float chargeGain = 1 / (120f - (chargeCap - charge)*5f);
 				chargeGain *= RingOfEnergy.artifactChargeMultiplier(target);

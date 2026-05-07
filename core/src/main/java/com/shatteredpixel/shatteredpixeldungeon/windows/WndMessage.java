@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,12 +37,17 @@ public class WndMessage extends Window {
 	}
 
 	public WndMessage( String text, Chrome.Type type ) {
+		this(text, type, true);
+	}
+	
+	public WndMessage( String text, Chrome.Type type, boolean highlightEnabled ) {
 
 		super( 0, 0, Chrome.get(type) );
 
 		int width = WIDTH_MIN;
 		
 		RenderedTextBlock info = PixelScene.renderTextBlock( text, 6 );
+		info.setHighlighting(highlightEnabled);
 		info.maxWidth(width - MARGIN * 2);
 		info.setPos(MARGIN, MARGIN);
 		add( info );

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@ import com.badlogic.gdx.controllers.ControllerListener;
 import com.badlogic.gdx.controllers.ControllerMapping;
 import com.badlogic.gdx.controllers.Controllers;
 import com.watabou.NotAllowedInLua;
+import com.watabou.noosa.Game;
 import com.watabou.noosa.ui.Cursor;
-import com.watabou.utils.DeviceCompat;
 import com.watabou.utils.PointF;
 
 @NotAllowedInLua
@@ -66,9 +66,7 @@ public class ControllerHandler implements ControllerListener {
 	private static boolean failedInit = false;
 
 	public static boolean controllersSupported() {
-		if (DeviceCompat.isAndroid() && Gdx.app.getVersion() < 16) {
-			return false;
-		} else if (failedInit) {
+		if (failedInit) {
 			return false;
 		} else if (initialized){
 			return true;
@@ -80,6 +78,7 @@ public class ControllerHandler implements ControllerListener {
 				initialized = true;
 				return true;
 			} catch (Exception e){
+				Game.reportException(e);
 				failedInit = true;
 				return false;
 			}
@@ -248,6 +247,10 @@ public class ControllerHandler implements ControllerListener {
 	}
 
 	public static boolean icControllerKey(int keyCode){
+		if (keyCode == 0){
+			return true;
+		}
+
 		if (keyCode >= Input.Keys.BUTTON_A
 				&& keyCode <= Input.Keys.BUTTON_MODE){
 			return true;

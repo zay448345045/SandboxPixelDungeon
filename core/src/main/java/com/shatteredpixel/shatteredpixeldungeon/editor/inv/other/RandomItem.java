@@ -34,7 +34,7 @@ public interface RandomItem<T extends GameObject> {
 
     String INTERNAL_RANDOM_ITEM = "internal_random_item";
 
-    T[] generateItems();
+    GameObject[] generateItems();//actually returns T[] and not GameObject[]
 
     ItemsWithChanceDistrComp.RandomItemData getInternalRandomItem_ACCESS_ONLY_FOR_EDITING_UI();
 
@@ -107,6 +107,13 @@ public interface RandomItem<T extends GameObject> {
             }
         }
     }
+    
+    static boolean areEqual(RandomItem<?> a, RandomItem<?> b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (a.getClass() != b.getClass()) return false;
+        return a.getInternalRandomItem_ACCESS_ONLY_FOR_EDITING_UI().equals(b.getInternalRandomItem_ACCESS_ONLY_FOR_EDITING_UI());
+    }
 
     class RandomItemAny extends Item implements RandomItem<Item> {
 
@@ -130,19 +137,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomItemAny) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Item[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -201,19 +201,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomWeapon) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Weapon[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -281,19 +274,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomMeleeWeapon) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public MeleeWeapon[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -350,19 +336,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomArmor) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Armor[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -415,19 +394,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomRing) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Ring[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -486,19 +458,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomArtifact) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Artifact[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -526,7 +491,19 @@ public interface RandomItem<T extends GameObject> {
         public String desc() {
             return RandomItem.getDesc();
         }
-
+        
+        @Override
+        protected ArtifactBuff passiveBuff() {
+            return new RandomArtifactDummyBuff();
+        }
+        
+        public class RandomArtifactDummyBuff extends ArtifactBuff{
+            @Override
+            public boolean act(){
+                spend(TICK);
+                return true;
+            }
+        }
     }
 
 
@@ -552,19 +529,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomEqMiscItem) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public KindofMisc[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -622,19 +592,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomWand) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Wand[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -706,19 +669,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomBag) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Bag[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -771,19 +727,12 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomTrinket) obj).internalRandomItem);
-        }
-
-        @Override
         public boolean isUpgradable() {
             return false;
         }
 
         @Override
-        public Trinket[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;
@@ -848,14 +797,7 @@ public interface RandomItem<T extends GameObject> {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (obj == null) return false;
-            if (getClass() != obj.getClass()) return false;
-            return internalRandomItem.equals(((RandomTrap) obj).internalRandomItem);
-        }
-
-        @Override
-        public Trap[] generateItems() {
+        public GameObject[] generateItems() {
             if (Random.Float() >= internalRandomItem.lootChance()) return null;
             List<Item> result = internalRandomItem.generateLoot();
             if (result == null || result.isEmpty()) return null;

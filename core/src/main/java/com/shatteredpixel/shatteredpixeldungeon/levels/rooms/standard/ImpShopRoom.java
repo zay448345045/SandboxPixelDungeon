@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,14 +25,18 @@ import com.shatteredpixel.shatteredpixeldungeon.SandboxPixelDungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Mob;
 import com.shatteredpixel.shatteredpixeldungeon.actors.mobs.npcs.ImpShopkeeper;
 import com.shatteredpixel.shatteredpixeldungeon.editor.quests.ImpQuest;
+import com.shatteredpixel.shatteredpixeldungeon.items.Heap;
 import com.shatteredpixel.shatteredpixeldungeon.items.Item;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.ShopRoom;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
-import com.watabou.utils.Bundlable;
 import com.watabou.utils.Bundle;
 import com.watabou.utils.Point;
+import com.watabou.utils.Random;
+
+import java.util.ArrayList;
+import java.util.Collection;
 
 //shops probably shouldn't extend special room, because of cases like this.
 public class ImpShopRoom extends ShopRoom {
@@ -59,7 +63,7 @@ public class ImpShopRoom extends ShopRoom {
 	public void paint(Level level) {
 		//this room isn't actually filled in until the city boss is defeated, at the earliest
 		//but we want to decide the items as part of levelgen
-		if (!itemsGenerated) generateItems(null);
+		if (!itemsGenerated) generateItems(level);
 	}
 
 	@Override
@@ -97,6 +101,31 @@ public class ImpShopRoom extends ShopRoom {
 		placeItems(level);
 	}
 
+	@Override
+	protected void placeItems(Level level) {
+		ArrayList<Item> existing = new ArrayList<>();
+
+		//check if there are existing items and remove them
+		for (Heap h : level.heaps.valueList()){
+			if (inside(level.cellToPoint(h.pos))){
+				existing.addAll(h.items);
+				level.heaps.remove(h.pos);
+				if (h.sprite != null) h.sprite.kill();
+			}
+		}
+
+		super.placeItems(level);
+
+		//place any existing items below the room
+		if (!existing.isEmpty()){
+			int pos = level.pointToCell(new Point(left+2, bottom+2));
+			for (Item i :existing){
+				level.drop(i, pos + Random.Int(5));
+			}
+		}
+
+	}
+
 	public boolean shopSpawned(){
 		return impSpawned;
 	}
@@ -116,8 +145,7 @@ public class ImpShopRoom extends ShopRoom {
 
 		if (bundle.contains("items")) {
 			itemsGenerated = true;
-			for (Bundlable item : bundle.getCollection("items"))
-				spawnItemsInRoom.add((Item) item);
+			spawnItemsInRoom = new ArrayList<>((Collection<Item>) ((Collection<?>) bundle.getCollection("items")));
 		}
 	}
 

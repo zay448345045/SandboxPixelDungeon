@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +44,9 @@ public class RingOfTime extends Ring {
 			}
 			return info;
 		} else {
-			return Messages.get(this, "typical_stats", Messages.decimalFormat("#.##", 20f));
+			return Messages.get(this, "typical_stats",
+					Messages.decimalFormat("#.##", 100f * (1 + RingOfHaste.POWER_BASE * 0.4)),
+					Messages.decimalFormat("#.##", 100f * (1 + RingOfFuror.POWER_BASE * 0.4)));
 		}
 	}
 	

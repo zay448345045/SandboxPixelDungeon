@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Cripple;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Invisibility;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Light;
 import com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemsWithChanceDistrComp;
 import com.shatteredpixel.shatteredpixeldungeon.items.Generator;
@@ -92,16 +93,20 @@ public class Scorpio extends Mob {
 
 	@Override
 	protected boolean doAttack(Char enemy) {
-		if (sprite instanceof ScorpioSprite || sprite == null || !sprite.visible && !enemy.sprite.visible)
-			return super.doAttack(enemy);
-
-		ScorpioSprite.doRealAttack(sprite, enemy.pos);
-		return false;
+		return doRangedAttack(enemy.pos);
 	}
 
 	@Override
 	public void onZapComplete() {
-		onAttackComplete();//Basically the same for scorpions
+		if (!sprite.instantZapDamage()) zap();
+		Invisibility.dispel(this);
+		spend( attackDelay() );
+		next();
+	}
+	
+	@Override
+	public void zap() {
+		attack(enemy); //moved from onAttackComplete() to here
 	}
 
 	@Override
@@ -121,7 +126,9 @@ public class Scorpio extends Mob {
 	@Override
 	public void aggro(Char ch) {
 		//cannot be aggroed to something it can't see
-		if (ch == null || fieldOfView == null || fieldOfView[ch.pos]) {
+		//skip this check if FOV isn't initialized
+		if (ch == null || fieldOfView == null
+				|| fieldOfView.length != Dungeon.level.length() || fieldOfView[ch.pos]) {
 			super.aggro(ch);
 		}
 	}

@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,13 +22,16 @@
 package com.shatteredpixel.shatteredpixeldungeon;
 
 import com.shatteredpixel.shatteredpixeldungeon.customobjects.interfaces.LuaClassGenerator;
+import com.shatteredpixel.shatteredpixeldungeon.editor.server.TempFilesHandler;
 import com.shatteredpixel.shatteredpixeldungeon.editor.util.CustomDungeonSaves;
+import com.shatteredpixel.shatteredpixeldungeon.items.keys.SkeletonKeyOld;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.DungeonScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.PixelScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.TitleScene;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.WelcomeScene;
 import com.shatteredpixel.shatteredpixeldungeon.ui.Window;
+import com.watabou.NotAllowedInLua;
 import com.watabou.noosa.Game;
 import com.watabou.noosa.ScrollArea;
 import com.watabou.noosa.audio.Music;
@@ -40,24 +43,18 @@ import com.watabou.utils.Reflection;
 
 public class SandboxPixelDungeon extends Game {
 
-	//variable constants for specific older versions of shattered, used for data conversion
-	public static final int v1_2_3 = 628; //v1.2.3 is kept for now, for old rankings score logic
+	//rankings from v1.2.3 and older use a different score formula, so this reference is kept
+	public static final int v1_2_3 = 628;
 
-	//savegames from versions older than v1.4.3 are no longer supported, and data from them is ignored
-	public static final int v1_4_3 = 668;
-	//versions older than v1.2.3 are no longer supported, and data from them is ignored
-	public static final int _0_3_v2_1_0  = 723;
-	public static final int _0_8_v2_2_0  = 755;
-	public static final int _1_0_v2_3_0  = 766;
-
-	public static final int v2_0_2 = 700;
-	public static final int v2_1_4 = 737; //iOS was 737, other platforms were 736
-	public static final int v2_2_1 = 755; //iOS was 755 (also called v2.2.2), other platforms were 754
-	public static final int v2_3_2 = 768;
-	public static final int v2_4_0 = 780;
+	//savegames from versions older than v2.5.4 are no longer supported, and data from them is ignored
+	//savegames from versions older than v2.4.2 are no longer supported, and data from them is ignored
+	public static final int v2_4_2 = 780;
 	public static final int v2_5_4 = 802;
 
-	public static final int v3_0_0 = 831;
+	public static final int v3_0_2 = 833;
+	public static final int v3_1_1 = 850;
+	public static final int v3_2_0 = 851;
+	public static final int v3_3_0 = 883;
 	
 	static {
 		Music.getExternalAudioFile = CustomDungeonSaves::getExternalFile;
@@ -68,6 +65,17 @@ public class SandboxPixelDungeon extends Game {
 
 	public SandboxPixelDungeon( PlatformSupport platform ) {
 		super( sceneClass == null ? WelcomeScene.class : sceneClass, platform );
+
+		//pre-v3.3.0
+		com.watabou.utils.Bundle.addAlias(
+				SkeletonKeyOld.class,
+				"com.shatteredpixel.shatteredpixeldungeon.items.keys.SkeletonKey" );
+
+		
+		//pre-v2.5.3
+		com.watabou.utils.Bundle.addAlias(
+				com.shatteredpixel.shatteredpixeldungeon.items.stones.StoneOfDetectMagic.class,
+				"com.shatteredpixel.shatteredpixeldungeon.items.stones.StoneOfDisarming" );
 
 		//pre-v2.5.2
 		com.watabou.utils.Bundle.addAlias(
@@ -112,35 +120,7 @@ public class SandboxPixelDungeon extends Game {
 		com.watabou.utils.Bundle.addAlias(
 				com.shatteredpixel.shatteredpixeldungeon.items.quest.RatSkullOld.class,
 				"com.shatteredpixel.shatteredpixeldungeon.items.quest.RatSkull" );
-
-		//pre-v2.3.0
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.items.bombs.Bomb.ConjuredBomb.class,
-				"com.shatteredpixel.shatteredpixeldungeon.items.bombs.Bomb$MagicalBomb" );
-
-		//pre-v2.2.0
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.BlacksmithRoom.QuestEntrance.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.BlacksmithRoom$QuestEntrance" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.BlacksmithRoom.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.BlacksmithRoom" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MassGraveRoom.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.MassGraveRoom" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MassGraveRoom.Bones.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.MassGraveRoom$Bones" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RitualSiteRoom.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.RitualSiteRoom" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RitualSiteRoom.RitualMarker.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.standard.RitualSiteRoom$RitualMarker" );
-		com.watabou.utils.Bundle.addAlias(
-				com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RotGardenRoom.class,
-				"com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special.RotGardenRoom" );
-
+		
 		com.watabou.utils.Bundle.addAlias(
 				com.shatteredpixel.shatteredpixeldungeon.editor.ui.ItemsWithChanceDistrComp.ItemWithCount.class,
 				"com.shatteredpixel.shatteredpixeldungeon.editor.editcomps.stateditor.LootTableComp$ItemWithCount" );
@@ -168,6 +148,7 @@ public class SandboxPixelDungeon extends Game {
 	@Override
 	public void finish() {
 		if (!DeviceCompat.isiOS()) {
+			TempFilesHandler.clearTempFiles();
 			super.finish();
 		} else {
 			//can't exit on iOS (Apple guidelines), so just go to title screen
@@ -229,8 +210,12 @@ public class SandboxPixelDungeon extends Game {
 		GameScene.endActorThread();
 	}
 	
+	//weird workaround, see usages for explanation, but it shouldn’t ever be set to true!
+	@NotAllowedInLua
+	public static boolean ignoreDisplaySizeChange = false;
+	
 	public void updateDisplaySize(){
-		platform.updateDisplaySize();
+		if (!ignoreDisplaySizeChange) platform.updateDisplaySize();
 	}
 
 	public static void updateSystemUI() {

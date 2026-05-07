@@ -8,6 +8,7 @@ import com.shatteredpixel.shatteredpixeldungeon.actors.DefaultStatsCache;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Blindness;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.ChampionEnemy;
+import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.ColorBuff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Foresight;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Light;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.MagicalSight;
@@ -99,7 +100,6 @@ import com.shatteredpixel.shatteredpixeldungeon.ui.StyledButton;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndBag;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndGameInProgress;
 import com.shatteredpixel.shatteredpixeldungeon.windows.WndInfoMob;
-import com.shatteredpixel.shatteredpixeldungeon.windows.WndJournal;
 import com.watabou.noosa.Image;
 import com.watabou.noosa.ui.Component;
 import com.watabou.utils.Random;
@@ -131,6 +131,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
     private StyledItemSelector questItem1, questItem2;
     private StyledCheckBox spawnQuestRoom;
     private ItemSelectorList<Item> blacksmithQuestRewards;
+    private StyledCheckBox autoCompleteQuest;
 
     private StyledCheckBox mimicSuperHidden;
     private StyledSpinner sentryRange, sentryDelay;
@@ -153,7 +154,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
         if (mob instanceof Mimic) {
             if (((Mimic) mob).items == null) ((Mimic) mob).items = new ArrayList<>();
             ArrayList<Item> mimicItemList = ((Mimic) mob).items;
-            mimicItems = new ItemContainerWithLabel<Item>(mimicItemList, this, true, Messages.get(WndJournal.class, "items") + ":") {
+            mimicItems = new ItemContainerWithLabel<Item>(mimicItemList, this, true, label("items") + ":") {
                 @Override
                 protected void doAddItem(Item item) {
                     //From Heap#drop()
@@ -437,6 +438,17 @@ public class EditMobComp extends DefaultEditComp<Mob> {
         if (mob instanceof QuestNPC<?>) {
             questSpinner = new QuestSpinner(((QuestNPC<?>) mob).quest, h -> mobStateSpinner.getCurrentInputFieldWith());
             add(questSpinner);
+            
+            autoCompleteQuest = new StyledCheckBox(label("quest_completed")) {
+                @Override
+                public void checked(boolean value) {
+                    super.checked(value);
+                    ((QuestNPC<?>) mob).autoCompletedQuest = value;
+                }
+            };
+            autoCompleteQuest.checked(((QuestNPC<?>) mob).autoCompletedQuest);
+            add(autoCompleteQuest);
+            
             if (mob instanceof Wandmaker) {
                 if (mob.pos < 0) {
                     spawnQuestRoom = new StyledCheckBox(label("spawn_quest_room")) {
@@ -518,8 +530,8 @@ public class EditMobComp extends DefaultEditComp<Mob> {
             } else {
                 if (mob instanceof Blacksmith) {
                     BlacksmithQuest quest = ((Blacksmith) mob).quest;
-                    if (quest.smithRewards == null) quest.smithRewards = new ArrayList<>(3);
-                    while (quest.smithRewards.size() < 3) quest.smithRewards.add(ItemSelectorList.NULL_ITEM);
+                    if (quest.smithRewards == null) quest.smithRewards = new ArrayList<>(4);
+                    while (quest.smithRewards.size() < 4) quest.smithRewards.add(ItemSelectorList.NULL_ITEM);
                     blacksmithQuestRewards = new ItemSelectorList<Item>(quest.smithRewards, label("blacksmith_items")) {
                         @Override
                         public void change(int index) {
@@ -532,7 +544,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
                                 @Override
                                 public boolean itemSelectable(Item item) {
                                     Item i = item instanceof ItemItem ? ((ItemItem) item).getObject() : item;
-                                    return i instanceof Weapon && !(i instanceof MissileWeapon || i instanceof SpiritBow)
+                                    return i instanceof Weapon && !(i instanceof SpiritBow)
                                             || i instanceof Armor;
                                 }
 
@@ -776,7 +788,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
 
                 List<BuffItem> asBuffItems = new ArrayList<>();
                 for (Buff b : mob.buffs()) {
-                    if (b.icon() != BuffIndicator.NONE) asBuffItems.add(new BuffItem(b));
+                    if (b.icon() != BuffIndicator.NONE || b instanceof ColorBuff) asBuffItems.add(new BuffItem(b));
                 }
                 buffs = new BuffListContainer(asBuffItems, EditMobComp.this, label("buffs")) {
                     @Override
@@ -876,7 +888,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
                 heroClassSpinner, heroSubclassSpinner,
                 heroMobLvl, heroMobStr, heroBindEquipment,
 
-                mob instanceof Ghost ? null : questSpinner, EditorUtilities.PARAGRAPH_INDICATOR_INSTANCE, questItem1, questItem2, spawnQuestRoom,
+                mob instanceof Ghost ? null : questSpinner, EditorUtilities.PARAGRAPH_INDICATOR_INSTANCE, questItem1, questItem2, spawnQuestRoom, autoCompleteQuest,
 
         };
         linearComps = new Component[]{
@@ -935,6 +947,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
          if (lotusLevelSpinner != null) lotusLevelSpinner.setValue(((WandOfRegrowth.Lotus) obj).getLvl());
          if (sheepLifespan != null) sheepLifespan.setValue(((Sheep) obj).lifespan);
          if (questSpinner != null) questSpinner.setValue(((QuestNPC<?>) obj).quest.type() + 3);
+         if (autoCompleteQuest != null) autoCompleteQuest.checked(((QuestNPC<?>) obj).autoCompletedQuest);
          if (spawnQuestRoom != null) spawnQuestRoom.checked(((Wandmaker) obj).quest.spawnQuestRoom);
          if (mimicSuperHidden != null) mimicSuperHidden.checked(((Mimic) obj).superHidden);
          if (sentryRange != null) sentryRange.setValue(((SentryRoom.Sentry) obj).range);
@@ -954,7 +967,7 @@ public class EditMobComp extends DefaultEditComp<Mob> {
             if (obj instanceof Guard) abilityCooldown.setValue(((Guard) obj).maxChainCooldown);
             else if (obj instanceof DM200) abilityCooldown.setValue(((DM200) obj).maxVentCooldown);
             else if (obj instanceof Golem) abilityCooldown.setValue(((Golem) obj).maxTeleCooldown);
-            else if (obj instanceof DemonSpawner) abilityCooldown.setValue(((DemonSpawner) obj).maxSpawnCooldown);
+            else if (obj instanceof DemonSpawner) abilityCooldown.setValue((int)((DemonSpawner) obj).maxSpawnCooldown);
             else if (obj instanceof com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Spinner)
                 abilityCooldown.setValue(((com.shatteredpixel.shatteredpixeldungeon.actors.mobs.Spinner) obj).maxWebCoolDown);
         }
@@ -989,14 +1002,14 @@ public class EditMobComp extends DefaultEditComp<Mob> {
              heroUtilityItems.setItemList(h.utilItems());
              heroMobLvl.setValue(h.lvl);
              heroMobStr.setValue(h.STR);
-             heroClassSpinner.setValue(h.heroClass.getIndex());
-             heroSubclassSpinner.setValue(h.subClass.getIndex()+1);
+             heroClassSpinner.setValue(h.heroClass);
+             heroSubclassSpinner.setValue(h.subClass);
          }
 
         if (buffs != null) {
             List<BuffItem> asBuffItems = new ArrayList<>();
             for (Buff b : obj.buffs()) {
-                if (b.icon() != BuffIndicator.NONE) asBuffItems.add(new BuffItem(b));
+                if (b.icon() != BuffIndicator.NONE || b instanceof ColorBuff) asBuffItems.add(new BuffItem(b));
             }
             buffs.setItemList(asBuffItems);
         }
@@ -1173,10 +1186,28 @@ public class EditMobComp extends DefaultEditComp<Mob> {
             if (!isMobListEqual(((YogDzewa) a).challengeSummons, ((YogDzewa) b).challengeSummons)) return false;
         }
         if (a instanceof DemonSpawner) {
-            if (((DemonSpawner) a).maxSpawnCooldown != ((DemonSpawner) a).maxSpawnCooldown) return false;
+            if (((DemonSpawner) a).maxSpawnCooldown != ((DemonSpawner) b).maxSpawnCooldown) return false;
         }
         if (a instanceof SpawnerMob) {
             if (!EditMobComp.isMobListEqual(((SpawnerMob) a).summonTemplate, ((SpawnerMob) b).summonTemplate)) return false;
+        }
+        if (a instanceof QuestNPC) {
+            if (((QuestNPC<?>) a).autoCompletedQuest != ((QuestNPC<?>) b).autoCompletedQuest) return false;
+            
+            if (((QuestNPC<?>) a).quest.type() != ((QuestNPC<?>) b).quest.type()) return false;
+            
+            if (a instanceof Ghost) {
+                if (!EditItemComp.areEqual(((Ghost) a).quest.weapon, ((Ghost) b).quest.weapon)) return false;
+                if (!EditItemComp.areEqual(((Ghost) a).quest.armor, ((Ghost) b).quest.armor)) return false;
+            } else if (a instanceof Wandmaker) {
+                if (!EditItemComp.areEqual(((Wandmaker) a).quest.wand1, ((Wandmaker) b).quest.wand1)) return false;
+                if (!EditItemComp.areEqual(((Wandmaker) a).quest.wand2, ((Wandmaker) b).quest.wand2)) return false;
+                if (((Wandmaker) a).quest.spawnQuestRoom != ((Wandmaker) b).quest.spawnQuestRoom) return false;
+            } else if (a instanceof Blacksmith) {
+                if (!EditItemComp.isItemListEqual(((Blacksmith) a).quest.smithRewards, ((Blacksmith) b).quest.smithRewards)) return false;
+            } else if (a instanceof Imp) {
+                if (!EditItemComp.areEqual(((Imp) a).quest.reward, ((Imp) b).quest.reward)) return false;
+            }
         }
         if (a instanceof Tengu) {
             if (((Tengu) a).arenaRadius != ((Tengu) b).arenaRadius) return false;

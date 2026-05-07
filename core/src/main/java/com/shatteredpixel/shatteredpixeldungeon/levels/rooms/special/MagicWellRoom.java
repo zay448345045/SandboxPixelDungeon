@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2015 Oleg Dolya
  *
  * Shattered Pixel Dungeon
- * Copyright (C) 2014-2024 Evan Debenham
+ * Copyright (C) 2014-2025 Evan Debenham
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ package com.shatteredpixel.shatteredpixeldungeon.levels.rooms.special;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.WaterOfAwareness;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.WaterOfHealth;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.WellWater;
+import com.shatteredpixel.shatteredpixeldungeon.items.keys.IronKey;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Level;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.painters.Painter;
@@ -31,6 +32,10 @@ import com.watabou.utils.Point;
 import com.watabou.utils.Random;
 
 public class MagicWellRoom extends SpecialRoom {
+	
+	{
+		spawnItemsOnLevel.add(new IronKey());
+	}
 
 	private static final Class<?>[] WATERS =
 		{WaterOfAwareness.class, WaterOfHealth.class};
@@ -54,6 +59,6 @@ public class MagicWellRoom extends SpecialRoom {
 		
 		WellWater.seed(c.x + level.width() * c.y, 1, waterClass, level);
 		
-		entrance().set( Door.Type.REGULAR );
+		entrance().set( Door.Type.LOCKED );
 	}
 }

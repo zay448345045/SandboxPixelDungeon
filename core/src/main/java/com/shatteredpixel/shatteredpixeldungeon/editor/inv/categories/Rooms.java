@@ -8,6 +8,7 @@ import com.shatteredpixel.shatteredpixeldungeon.editor.util.EditorUtilities;
 import com.shatteredpixel.shatteredpixeldungeon.journal.Document;
 import com.shatteredpixel.shatteredpixeldungeon.levels.Terrain;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.Room;
+import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.AmbitiousImpRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.BlacksmithRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.MassGraveRoom;
 import com.shatteredpixel.shatteredpixeldungeon.levels.rooms.quest.RitualSiteRoom;
@@ -136,6 +137,7 @@ public final class Rooms extends GameObjectCategory<Room> {
                     RingRoom.class,
                     CircleBasinRoom.class,
                     WaterBridgeRoom.class,
+                    RegionDecoPatchRoom.class,
 
                     DiamondGooRoom.class,
                     WalledGooRoom.class,
@@ -158,6 +160,8 @@ public final class Rooms extends GameObjectCategory<Room> {
                     PillarsRoom.class,
                     CellBlockRoom.class,
                     ChasmBridgeRoom.class,
+                    RegionDecoLineRoom.class,
+                    
                     RotGardenRoom.class,
                     RitualSiteRoom.class,
                     MassGraveRoom.class
@@ -178,6 +182,8 @@ public final class Rooms extends GameObjectCategory<Room> {
                     CavesFissureRoom.class,
                     CirclePitRoom.class,
                     CircleWallRoom.class,
+                    RegionDecoBridgeRoom.class,
+                    
                     BlacksmithRoom.class
             });
         }
@@ -195,7 +201,10 @@ public final class Rooms extends GameObjectCategory<Room> {
                     HallwayRoom.class,
                     StatuesRoom.class,
                     SegmentedLibraryRoom.class,
-                    LibraryRingRoom.class
+                    LibraryRingRoom.class,
+                    LibraryHallRoom.class,
+                    
+                    AmbitiousImpRoom.class
             });
         }
 
@@ -213,6 +222,8 @@ public final class Rooms extends GameObjectCategory<Room> {
                     ChasmRoom.class,
                     SkullsRoom.class,
                     RitualRoom.class,
+                    RegionDecoPatchRoom.class,
+                    
                     DemonSpawnerRoom.class
             });
         }
@@ -236,7 +247,6 @@ public final class Rooms extends GameObjectCategory<Room> {
                     GrassyGraveRoom.class,
                     StripedRoom.class,
                     StudyRoom.class,
-                    LibraryRoom.class,
                     SuspiciousChestRoom.class,
                     MinefieldRoom.class
             });
@@ -258,6 +268,7 @@ public final class Rooms extends GameObjectCategory<Room> {
                     StorageRoom.class,
                     TreasuryRoom.class,
                     LaboratoryRoom.class,
+                    LibraryRoom.class,
                     RunestoneRoom.class,
                     MagicWellRoom.class,
                     SacrificeRoom.class,
